@@ -7,6 +7,7 @@ import { exportProjectFile, exportStill, exportVideo } from "../engine/exporter"
 import { TEMPLATES, templateById } from "../templates";
 import { clock } from "../state/clock";
 import { Icon } from "./icons";
+import { canDownload } from "../state/entitlement";
 
 const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
 
@@ -20,6 +21,11 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
 
   const doExport = async (scale: number) => {
     setError(null);
+    // Sign-in isn't built yet, so there is no account to pass; with the paywall off this always allows.
+    if (!canDownload(null)) {
+      setError("Downloading videos needs the Lifetime plan.");
+      return;
+    }
     abort.current = new AbortController();
     const wasPlaying = clock.playing;
     clock.setPlaying(false);
