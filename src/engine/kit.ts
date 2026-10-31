@@ -131,6 +131,8 @@ interface ParamBase {
   label: string;
   help?: string;
   group?: string;
+  /** Only show this control when the scene's settings match. */
+  showIf?: (params: Record<string, ParamValue>) => boolean;
 }
 
 export type ParamDef =
@@ -145,7 +147,9 @@ export type ParamDef =
   | (ParamBase & { type: "boolean"; default: boolean })
   | (ParamBase & { type: "media"; default: string })
   /** An ordered list of photos, stored as JSON: [{ id, span }]. Empty means "use brand graphics". max limits how many. */
-  | (ParamBase & { type: "gallery"; default: string; spans?: boolean; max?: number });
+  | (ParamBase & { type: "gallery"; default: string; spans?: boolean; max?: number })
+  /** A photo plus the four corners of the surface the logo goes on, stored as JSON (see scenes/mockup.ts). */
+  | (ParamBase & { type: "surface"; default: string });
 
 export interface SceneDef {
   type: string;
