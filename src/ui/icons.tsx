@@ -11,6 +11,19 @@ function Svg({ size = 18, children, ...rest }: P) {
 }
 
 export const Icon = {
+  Check: (p: P) => (
+    <Svg {...p}>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </Svg>
+  ),
+  Templates: (p: P) => (
+    <Svg {...p}>
+      <rect x="3.5" y="3.5" width="7" height="9" rx="1.5" />
+      <rect x="13.5" y="3.5" width="7" height="5" rx="1.5" />
+      <rect x="13.5" y="11.5" width="7" height="9" rx="1.5" />
+      <rect x="3.5" y="15.5" width="7" height="5" rx="1.5" />
+    </Svg>
+  ),
   Play: (p: P) => (
     <Svg {...p}>
       <path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none" />

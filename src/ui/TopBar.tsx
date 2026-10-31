@@ -4,7 +4,8 @@ import type { Store } from "../state/store";
 import { normalizeProject } from "../state/store";
 import type { BrandAssets } from "../engine/kit";
 import { exportProjectFile, exportStill, exportVideo } from "../engine/exporter";
-import { TEMPLATES, templateById } from "../templates";
+import { templateById } from "../templates";
+import { TemplatePicker } from "./TemplatePicker";
 import { clock } from "../state/clock";
 import { Icon } from "./icons";
 import { canDownload } from "../state/entitlement";
@@ -57,16 +58,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
     <header className="topbar">
       <div className="tb-left">
         <span className="brand-dot" aria-hidden />
-        <div className="template-pick">
-          <select value={project.template} onChange={(e) => switchTemplate(e.target.value)} aria-label="Template">
-            {TEMPLATES.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-          <Icon.Chevron size={16} />
-        </div>
+        <TemplatePicker value={project.template} onChange={switchTemplate} />
       </div>
 
       <div className="segmented" role="radiogroup" aria-label="Format">

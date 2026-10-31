@@ -1,7 +1,8 @@
 :root {
-  --accent: #d0103a;
-  --accent-hover: #b20c31;
-  --accent-soft: #fde8ed;
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
+  --accent-soft: #e5edfd;
+  --danger: #d92d20;
   --ink: #15161a;
   --ink-2: #4b4e57;
   --ink-3: #8a8d96;
@@ -16,7 +17,7 @@
   --track: #dcdde2;
   --hover: #e9eaee;
   --dash: #d7d8de;
-  --drop-hover: #fffafb;
+  --drop-hover: #f6f9ff;
   --toggle-off: #d8d9de;
   --muted-icon: #b9bbc2;
   --overlay: rgba(250, 250, 251, 0.75);
@@ -33,9 +34,10 @@
 
 /* Dark editor theme. Only the studio chrome changes; the video keeps its brand colours. */
 :root[data-theme="dark"] {
-  --accent: #ff3b63;
-  --accent-hover: #ff5a7d;
-  --accent-soft: rgba(255, 59, 99, 0.16);
+  --accent: #4c8dff;
+  --accent-hover: #6aa1ff;
+  --accent-soft: rgba(76, 141, 255, 0.18);
+  --danger: #ff6b5e;
   --ink: #eceef2;
   --ink-2: #b4b8c2;
   --ink-3: #7d828e;
@@ -47,7 +49,7 @@
   --track: #3a3e47;
   --hover: #2c3038;
   --dash: #3a3e47;
-  --drop-hover: rgba(255, 59, 99, 0.06);
+  --drop-hover: rgba(76, 141, 255, 0.06);
   --toggle-off: #3a3e47;
   --muted-icon: #5d626d;
   --overlay: rgba(12, 13, 16, 0.75);
@@ -83,19 +85,40 @@ button:disabled { cursor: default; opacity: 0.45; }
 }
 .tb-left { display: flex; align-items: center; gap: 10px; }
 .brand-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
-.template-pick { position: relative; display: flex; align-items: center; }
-.template-pick select {
-  appearance: none; border: 0; background: transparent; font-weight: 600; font-size: 15px; padding: 6px 26px 6px 4px; border-radius: 8px;
+.template-pick { position: relative; }
+.template-btn {
+  display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); background: var(--field); border-radius: 12px;
+  padding: 6px 10px 6px 8px; text-align: left; color: var(--ink); transition: border-color 0.15s, background 0.15s;
 }
-.template-pick select:hover { background: var(--field); }
-.template-pick svg { position: absolute; right: 4px; pointer-events: none; color: var(--ink-3); }
+.template-btn:hover, .template-btn[aria-expanded="true"] { border-color: var(--accent); background: var(--panel); }
+.template-btn .tp-icon { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 8px; background: var(--accent-soft); color: var(--accent); }
+.template-btn .tp-text { display: flex; flex-direction: column; line-height: 1.15; }
+.template-btn .tp-label { font-size: 10px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.template-btn .tp-name { font-size: 15px; font-weight: 600; }
+.template-btn > svg { color: var(--ink-3); margin-left: 4px; }
+.template-menu {
+  position: absolute; left: 0; top: calc(100% + 8px); width: 360px; background: var(--panel); border: 1px solid var(--line);
+  border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; z-index: 20; display: flex; flex-direction: column; gap: 4px;
+}
+.template-menu h3 { margin: 6px 8px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
+.template-option { display: flex; gap: 12px; align-items: flex-start; border: 1px solid transparent; background: none; border-radius: 10px; padding: 10px; text-align: left; color: var(--ink); }
+.template-option:hover { background: var(--field); }
+.template-option.active { border-color: var(--accent); background: var(--accent-soft); }
+.tp-shape { flex: none; display: grid; place-items: center; width: 44px; height: 44px; }
+.tp-shape span { display: block; border-radius: 4px; background: var(--accent); opacity: 0.85; }
+.tp-body { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.tp-body strong { font-size: 14px; display: flex; align-items: center; gap: 6px; }
+.tp-body p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
+.tp-meta { font-size: 11.5px; color: var(--ink-3); font-family: "JetBrains Mono", ui-monospace, monospace; }
+.tp-check { color: var(--accent); }
+.template-menu .tp-foot { margin: 4px 8px 4px; font-size: 12px; color: var(--ink-3); }
 .tb-right { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
 
 .segmented { display: inline-flex; background: var(--field); border-radius: 999px; padding: 4px; gap: 2px; }
 .segmented button {
   border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--ink-2);
 }
-.segmented button.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(208, 16, 58, 0.3); }
+.segmented button.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 .primary-btn {
   display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: var(--radius-sm);
@@ -109,7 +132,7 @@ button:disabled { cursor: default; opacity: 0.45; }
 }
 .ghost-btn:hover { background: var(--field); }
 .ghost-btn.wide { width: 100%; justify-content: center; }
-.ghost-btn.danger, .menu .danger { color: var(--accent); }
+.ghost-btn.danger, .menu .danger { color: var(--danger); }
 .icon-btn {
   display: inline-grid; place-items: center; width: 34px; height: 34px; border: 0; border-radius: 9px; background: transparent; color: var(--ink-2);
 }
@@ -160,7 +183,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 }
 .tl-block:hover { background: var(--hover); }
 .tl-block.current { background: var(--accent-soft); color: var(--accent); }
-.tl-progress { position: absolute; inset: 0 auto 0 0; background: rgba(208, 16, 58, 0.12); }
+.tl-progress { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 12%, transparent); }
 .tl-label { position: relative; overflow: hidden; text-overflow: ellipsis; display: block; }
 .tl-total { align-self: center; font-size: 12px; color: var(--ink-3); padding-left: 6px; font-variant-numeric: tabular-nums; }
 .template-note { margin: 0; font-size: 12px; color: var(--ink-3); }
@@ -178,7 +201,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .section-head { display: flex; align-items: center; justify-content: space-between; }
 .section h3 { margin: 0; font-size: 17px; font-weight: 600; }
 .help { margin: 0; color: var(--ink-3); font-size: 13px; line-height: 1.5; }
-.error { margin: 0; color: var(--accent); font-size: 13px; }
+.error { margin: 0; color: var(--danger); font-size: 13px; }
 .field { display: grid; gap: 6px; }
 .field-label { font-size: 13px; color: var(--ink-2); }
 .text {
