@@ -12,11 +12,16 @@ import { music } from "./audio/engine";
 import { templateById } from "./templates";
 import { AssetsContext, MediaContext } from "./state/mediaContext";
 import { LibraryContext, createLibrary } from "./state/library";
+import type { Project } from "./types";
+import { useAccount } from "./cloud/account";
+import { useProjectThumbnail } from "./state/thumbnail";
 
 type Tab = "brand" | "scenes" | "media" | "music";
 
-export default function App() {
-  const store = useStore();
+/** The editor for one project. `persist` saves it (to this browser for guests, to the account once signed in). */
+export default function App({ initial, persist }: { initial: Project; persist: (p: Project) => void }) {
+  const store = useStore(initial, persist);
+  const account = useAccount();
   const { project, undo, redo } = store;
   const { assets, version, addMediaElement } = useAssets(project);
   const [tab, setTab] = useState<Tab>("brand");
@@ -24,6 +29,9 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const library = useMemo(() => createLibrary(store, addMediaElement), [store.update, addMediaElement]);
   const assetsValue = useMemo(() => ({ assets, version }), [assets, version]);
+
+  // A small preview image for the project list.
+  useProjectThumbnail(project, assets, version, account.user ? account.setThumbnail : null);
 
   // Keep the soundtrack in step with every edit.
   useEffect(() => music.setProject(project), [project]);
