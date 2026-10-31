@@ -12,17 +12,20 @@ import { canDownload } from "../state/entitlement";
 import { useTheme } from "../state/theme";
 
 const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
+/** The formats most social and video platforms want, for "Download all formats". */
+const ALL_FORMATS: Aspect[] = ["16:9", "9:16", "1:1"];
 
 export function TopBar({ store, assets }: { store: Store; assets: BrandAssets }) {
   const { project, update, undo, redo, canUndo, canRedo, replace } = store;
   const [progress, setProgress] = useState<number | null>(null);
+  const [batch, setBatch] = useState<string | null>(null);
   const [menu, setMenu] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const { theme, toggle: toggleTheme } = useTheme();
 
-  const doExport = async (scale: number) => {
+  const doExport = async (scale: number, formats?: Aspect[]) => {
     setError(null);
     // Sign-in isn't built yet, so there is no account to pass; with the paywall off this always allows.
     if (!canDownload(null)) {
@@ -34,11 +37,17 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
     clock.setPlaying(false);
     setProgress(0);
     try {
-      await exportVideo(project, assets, { fps: 30, scale, onProgress: setProgress, signal: abort.current.signal });
+      if (!formats) await exportVideo(project, assets, { fps: 30, scale, onProgress: setProgress, signal: abort.current.signal });
+      else
+        for (let i = 0; i < formats.length; i++) {
+          setBatch(`${i + 1} of ${formats.length} · ${formats[i]}`);
+          await exportVideo({ ...project, aspect: formats[i] }, assets, { fps: 30, scale, onProgress: (k) => setProgress((i + k) / formats.length), signal: abort.current.signal });
+        }
     } catch (e) {
       if ((e as Error).name !== "AbortError") setError((e as Error).message || "Export failed.");
     } finally {
       setProgress(null);
+      setBatch(null);
       clock.setPlaying(wasPlaying);
     }
   };
@@ -91,6 +100,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
               <button type="button" onClick={() => (fileInput.current?.click(), setMenu(false))}>Open project file…</button>
               <button type="button" onClick={() => (exportStill(project, assets, clock.t), setMenu(false))}>Download this frame (PNG)</button>
               <button type="button" onClick={() => (doExport(2), setMenu(false))}>Download video in 2× size</button>
+              <button type="button" onClick={() => (doExport(1, ALL_FORMATS), setMenu(false))}>Download in 16:9, 9:16 and 1:1</button>
               <hr />
               <button
                 type="button"
@@ -124,6 +134,11 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
             }}
           />
         </div>
+        {project.template === "logo-sting" && (
+          <button type="button" className="ghost-btn" onClick={() => doExport(1, ALL_FORMATS)} disabled={progress !== null} title="Download 16:9, 9:16 and 1:1 versions">
+            <Icon.Download size={16} /> All 3 formats
+          </button>
+        )}
         <button type="button" className="primary-btn" onClick={() => doExport(1)} disabled={progress !== null}>
           <Icon.Download size={16} /> Download video
         </button>
@@ -132,7 +147,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
       {progress !== null && (
         <div className="export-overlay" role="dialog" aria-live="polite">
           <div className="export-card">
-            <strong>Rendering your video…</strong>
+            <strong>{batch ? `Rendering video ${batch}…` : "Rendering your video…"}</strong>
             <div className="bar">
               <span style={{ width: `${Math.round(progress * 100)}%` }} />
             </div>

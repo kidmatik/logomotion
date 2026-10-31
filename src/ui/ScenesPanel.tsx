@@ -197,6 +197,8 @@ function SceneRow({
 export function ScenesPanel({ store }: { store: Store }) {
   const { project, update } = store;
   const [open, setOpen] = useState<string | null>(null);
+  // A one-scene template (like the logo sting) shows its settings until you close them.
+  const autoOpen = project.scenes.length === 1 && (open === null || (open !== "" && !project.scenes.some((x) => x.uid === open)));
   const [drag, setDrag] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const { total } = buildTimeline(project);
@@ -242,8 +244,8 @@ export function ScenesPanel({ store }: { store: Store }) {
             scene={s}
             index={i}
             store={store}
-            open={open === s.uid}
-            onOpen={() => setOpen(open === s.uid ? null : s.uid)}
+            open={open === s.uid || autoOpen}
+            onOpen={() => setOpen(open === s.uid || autoOpen ? "" : s.uid)}
             dragging={drag === s.uid}
             onDragStart={() => setDrag(s.uid)}
             onDragOver={() => moveTo(s.uid)}

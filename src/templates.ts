@@ -68,6 +68,15 @@ export const TEMPLATES: Template[] = [
       ["flash", "cut", true, 2],
     ]),
   },
+  {
+    id: "logo-sting",
+    name: "Logo Sting",
+    description: "A 4-second logo reveal with a synced sound hit, for the start or end of any video. Download it in 16:9, 9:16 and 1:1 at once.",
+    aspect: "16:9",
+    tempo: { bpm: 120, snap: true },
+    music: "pulse",
+    scenes: build([["sting", "cut", true, 4]]),
+  },
 ];
 
 export function templateById(id: string) {

@@ -12,6 +12,7 @@ import { patternScene } from "./pattern";
 import { signoffScene } from "./signoff";
 import { endcardScene } from "./endcard";
 import { bentoScene, slideshowScene } from "./photos";
+import { stingScene } from "./sting";
 import { assembleScene, blueprintScene, chromeScene, flashScene, marqueeScene, socialScene, stackScene, wordbuildScene } from "./reel";
 
 /** Every scene the studio knows. Adding a scene = one file + one line here. */
@@ -37,6 +38,7 @@ export const SCENES: SceneDef[] = [
   chromeScene,
   marqueeScene,
   flashScene,
+  stingScene,
 ];
 
 const byType = new Map(SCENES.map((s) => [s.type, s]));

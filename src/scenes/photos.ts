@@ -636,6 +636,7 @@ export function previewTime(type: string, duration: number, params: Record<strin
     const TT = Math.min(0.7 * (SPEED[String(params.speed)] ?? 1), d * 0.45);
     return mode === "motion" ? d + TT * 0.5 : d * 0.6;
   }
+  if (type === "sting") return mode === "motion" ? 0.72 : duration * 0.9;
   if (type === "bento") return mode === "motion" ? 0.5 * (SPEED[String(params.speed)] ?? 1) : duration * 0.92;
   return mode === "motion" ? Math.min(0.6, duration / 2) : duration * 0.9;
 }

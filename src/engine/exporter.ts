@@ -57,7 +57,8 @@ function download(blob: Blob, name: string) {
 
 export function fileBase(project: Project) {
   const slug = (project.brand.name || "brand").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-  return `${slug || "brand"}-in-motion-${project.aspect.replace(":", "x")}`;
+  const kind = project.template === "logo-sting" ? "logo-sting" : project.template === "brand-reel" ? "reel" : "in-motion";
+  return `${slug || "brand"}-${kind}-${project.aspect.replace(":", "x")}`;
 }
 
 async function pickCodec(width: number, height: number): Promise<string | null> {

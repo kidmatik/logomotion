@@ -2,6 +2,7 @@ import type { Project } from "../types";
 import { buildTimeline } from "../engine/renderer";
 import { VEL, styleById } from "./styles";
 import type { Hit } from "./voices";
+import { STING_EXIT, STING_LAND, STING_NAME } from "../scenes/sting";
 
 /** Scenes where the logo lands; they get the big impact on their first frame. */
 const REVEALS = new Set(["reveal", "assemble", "wordbuild", "icon"]);
@@ -33,6 +34,22 @@ export function buildScore(project: Project): Hit[] {
   const finale = finaleIdx > 0 && (entries[finaleIdx].scene.type === "endcard" || entries[finaleIdx].scene.type === "signoff" || entries.length > 2);
 
   entries.forEach((e, idx) => {
+    // A logo sting has its own sound design: a riser into one big impact where the mark lands.
+    if (e.scene.type === "sting") {
+      const land = e.start + Math.min(STING_LAND, e.dur * 0.5);
+      add({ t: e.start, voice: "riser", vel: 1, len: land - e.start });
+      // A roll that tightens into the landing, so the build is felt from the first frame.
+      const roll = style.fill[style.fill.length - 1]?.voice ?? "clap";
+      [0.75, 0.5, 0.375, 0.25, 0.1875, 0.125, 0.0625].forEach((d, i, all) => {
+        if (land - d > e.start) add({ t: land - d, voice: roll, vel: 0.3 + (0.5 * i) / (all.length - 1), pan: i % 2 ? 0.25 : -0.25 });
+      });
+      for (const v of new Set([...style.impact, ...style.hit])) add({ t: land, voice: v, vel: 1 });
+      if (m.intensity !== "calm") add({ t: land, voice: "sub", vel: 0.8, hz: 41.2, len: 1.2 });
+      if (m.hits) add({ t: e.start + STING_NAME, voice: style.hit[0], vel: 0.55 });
+      if (m.hits && m.intensity === "high") add({ t: e.start + STING_NAME + 0.35, voice: "snap", vel: 0.5, pan: 0.3 });
+      if (e.scene.params.ending === "out") add({ t: e.end - STING_EXIT, voice: "riser", vel: 0.45, len: STING_EXIT * 0.9 });
+      return;
+    }
     const isFinale = finale && idx === finaleIdx;
     const beforeFinale = finale && idx === finaleIdx - 1;
 
