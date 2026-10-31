@@ -97,15 +97,20 @@ button:disabled { cursor: default; opacity: 0.45; }
 .template-btn .tp-name { font-size: 15px; font-weight: 600; }
 .template-btn > svg { color: var(--ink-3); margin-left: 4px; }
 .template-menu {
-  position: absolute; left: 0; top: calc(100% + 8px); width: 360px; background: var(--panel); border: 1px solid var(--line);
+  position: absolute; left: 0; top: calc(100% + 8px); width: 460px; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; z-index: 20; display: flex; flex-direction: column; gap: 4px;
 }
 .template-menu h3 { margin: 6px 8px 4px; font-size: 12px; font-weight: 600; color: var(--ink-3); text-transform: uppercase; letter-spacing: 0.08em; }
 .template-option { display: flex; gap: 12px; align-items: flex-start; border: 1px solid transparent; background: none; border-radius: 10px; padding: 10px; text-align: left; color: var(--ink); }
 .template-option:hover { background: var(--field); }
 .template-option.active { border-color: var(--accent); background: var(--accent-soft); }
-.tp-shape { flex: none; display: grid; place-items: center; width: 44px; height: 44px; }
-.tp-shape span { display: block; border-radius: 4px; background: var(--accent); opacity: 0.85; }
+.tp-thumb { flex: none; position: relative; display: grid; place-items: center; width: 142px; height: 80px; border-radius: 8px; background: var(--field); }
+.tp-thumb canvas { display: block; border-radius: 6px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.08); }
+.tp-aspect {
+  position: absolute; right: 5px; bottom: 5px; padding: 1px 6px; border-radius: 999px; background: rgba(10, 12, 18, 0.72); color: #fff;
+  font: 500 10px/16px "JetBrains Mono", ui-monospace, monospace; letter-spacing: 0.02em;
+}
+.template-option:hover .tp-thumb canvas { transform: scale(1.03); transition: transform 0.2s ease; }
 .tp-body { flex: 1; display: flex; flex-direction: column; gap: 3px; }
 .tp-body strong { font-size: 14px; display: flex; align-items: center; gap: 6px; }
 .tp-body p { margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--ink-2); }
