@@ -69,7 +69,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
     <header className="topbar">
       <div className="tb-left">
         <span className="brand-dot" aria-hidden />
-        <TemplatePicker value={project.template} onChange={switchTemplate} />
+        <TemplatePicker value={project.template} onChange={switchTemplate} project={project} assets={assets} />
       </div>
 
       <div className="segmented" role="radiogroup" aria-label="Format">
