@@ -2,6 +2,42 @@ import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 import type { Project } from "../types";
 import type { BrandAssets } from "./kit";
 import { ASPECTS, buildTimeline, renderFrame, seekVideosExact } from "./renderer";
+import { SAMPLE_RATE, renderSoundtrack } from "../audio/engine";
+
+/** AAC plays everywhere; Opus-in-MP4 is the fallback where the browser can't encode AAC. */
+async function pickAudioCodec(): Promise<{ codec: string; mux: "aac" | "opus" } | null> {
+  if (typeof AudioEncoder === "undefined") return null;
+  for (const [codec, mux] of [["mp4a.40.2", "aac"], ["opus", "opus"]] as const) {
+    try {
+      const { supported } = await AudioEncoder.isConfigSupported({ codec, sampleRate: SAMPLE_RATE, numberOfChannels: 2, bitrate: 192_000 });
+      if (supported) return { codec, mux };
+    } catch {
+      /* try the next one */
+    }
+  }
+  return null;
+}
+
+/** Feed a rendered soundtrack through an AudioEncoder into the muxer. */
+async function encodeAudio(buffer: AudioBuffer, codec: string, muxer: Muxer<ArrayBufferTarget>) {
+  let error: Error | null = null;
+  const enc = new AudioEncoder({ output: (chunk, meta) => muxer.addAudioChunk(chunk, meta), error: (e) => (error = e as Error) });
+  enc.configure({ codec, sampleRate: SAMPLE_RATE, numberOfChannels: 2, bitrate: 192_000 });
+  const L = buffer.getChannelData(0), R = buffer.getChannelData(1);
+  const block = 4800;
+  for (let i = 0; i < buffer.length; i += block) {
+    const n = Math.min(block, buffer.length - i);
+    const data = new Float32Array(n * 2);
+    data.set(L.subarray(i, i + n), 0);
+    data.set(R.subarray(i, i + n), n);
+    const ad = new AudioData({ format: "f32-planar", sampleRate: SAMPLE_RATE, numberOfFrames: n, numberOfChannels: 2, timestamp: Math.round((i / SAMPLE_RATE) * 1e6), data });
+    enc.encode(ad);
+    ad.close();
+  }
+  await enc.flush();
+  enc.close();
+  if (error) throw error;
+}
 
 export interface ExportOptions {
   fps: number;
@@ -53,8 +89,17 @@ export async function exportVideo(project: Project, assets: BrandAssets, opts: E
   const codec = await pickCodec(width, height);
   if (!codec) return exportWebmRealtime(project, assets, canvas, total, opts);
 
+  // The soundtrack is rendered first (a second or two) so it can go in the same file.
+  const soundtrack = await renderSoundtrack(project);
+  const audioCodec = soundtrack ? await pickAudioCodec() : null;
   const target = new ArrayBufferTarget();
-  const muxer = new Muxer({ target, video: { codec: "avc", width, height, frameRate: opts.fps }, fastStart: "in-memory" });
+  const muxer = new Muxer({
+    target,
+    video: { codec: "avc", width, height, frameRate: opts.fps },
+    audio: audioCodec ? { codec: audioCodec.mux, sampleRate: SAMPLE_RATE, numberOfChannels: 2 } : undefined,
+    fastStart: "in-memory",
+    firstTimestampBehavior: "offset",
+  });
   let encodeError: Error | null = null;
   const encoder = new VideoEncoder({
     output: (chunk, meta) => muxer.addVideoChunk(chunk, meta),
@@ -87,6 +132,7 @@ export async function exportVideo(project: Project, assets: BrandAssets, opts: E
   }
   await encoder.flush();
   encoder.close();
+  if (soundtrack && audioCodec) await encodeAudio(soundtrack, audioCodec.codec, muxer);
   muxer.finalize();
   opts.onProgress?.(1);
   download(new Blob([target.buffer], { type: "video/mp4" }), fileBase(project) + ".mp4");
@@ -95,11 +141,24 @@ export async function exportVideo(project: Project, assets: BrandAssets, opts: E
 async function exportWebmRealtime(project: Project, assets: BrandAssets, canvas: HTMLCanvasElement, total: number, opts: ExportOptions) {
   const ctx = canvas.getContext("2d")!;
   const stream = canvas.captureStream(opts.fps);
+  // Play the rendered soundtrack into the recording in real time alongside the frames.
+  const soundtrack = await renderSoundtrack(project);
+  let audioCtx: AudioContext | null = null;
+  let source: AudioBufferSourceNode | null = null;
+  if (soundtrack) {
+    audioCtx = new AudioContext({ sampleRate: SAMPLE_RATE });
+    const dest = audioCtx.createMediaStreamDestination();
+    source = audioCtx.createBufferSource();
+    source.buffer = soundtrack;
+    source.connect(dest);
+    dest.stream.getAudioTracks().forEach((t) => stream.addTrack(t));
+  }
   const rec = new MediaRecorder(stream, { mimeType: "video/webm", videoBitsPerSecond: 12_000_000 });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => chunks.push(e.data);
   const done = new Promise<void>((r) => (rec.onstop = () => r()));
   rec.start();
+  source?.start();
   const start = performance.now();
   await new Promise<void>((resolve) => {
     const tick = () => {
@@ -113,6 +172,7 @@ async function exportWebmRealtime(project: Project, assets: BrandAssets, canvas:
   });
   rec.stop();
   await done;
+  audioCtx?.close();
   if (opts.signal?.aborted) throw new DOMException("Export cancelled", "AbortError");
   download(new Blob(chunks, { type: "video/webm" }), fileBase(project) + ".webm");
 }

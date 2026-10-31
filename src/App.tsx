@@ -7,11 +7,13 @@ import { PlayerBar, Preview, Timeline } from "./ui/Preview";
 import { BrandPanel } from "./ui/BrandPanel";
 import { ScenesPanel } from "./ui/ScenesPanel";
 import { MediaPanel } from "./ui/MediaPanel";
+import { MusicPanel } from "./ui/MusicPanel";
+import { music } from "./audio/engine";
 import { templateById } from "./templates";
 import { AssetsContext, MediaContext } from "./state/mediaContext";
 import { LibraryContext, createLibrary } from "./state/library";
 
-type Tab = "brand" | "scenes" | "media";
+type Tab = "brand" | "scenes" | "media" | "music";
 
 export default function App() {
   const store = useStore();
@@ -22,6 +24,19 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const library = useMemo(() => createLibrary(store, addMediaElement), [store.update, addMediaElement]);
   const assetsValue = useMemo(() => ({ assets, version }), [assets, version]);
+
+  // Keep the soundtrack in step with every edit.
+  useEffect(() => music.setProject(project), [project]);
+  // Browsers only allow sound after the first click or key press.
+  useEffect(() => {
+    const unlock = () => music.unlock();
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   // Keyboard: space to play/pause, arrows to step, Ctrl+Z / Ctrl+Shift+Z for undo/redo.
   useEffect(() => {
@@ -67,6 +82,7 @@ export default function App() {
                 ["brand", "Brand"],
                 ["scenes", "Scenes"],
                 ["media", "Media"],
+                ["music", "Music"],
               ] as [Tab, string][]
             ).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
@@ -78,6 +94,7 @@ export default function App() {
           {tab === "brand" && <BrandPanel store={store} />}
           {tab === "scenes" && <ScenesPanel store={store} />}
           {tab === "media" && <MediaPanel store={store} media={assets.media} />}
+          {tab === "music" && <MusicPanel store={store} />}
         </aside>
       </main>
     </div>
