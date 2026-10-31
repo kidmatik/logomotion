@@ -1,11 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Project } from "../types";
+import type { Project, SceneInstance } from "../types";
 import { defaultProject } from "../brand/defaults";
 import { createScene, sceneDef } from "../scenes/registry";
+import { PHOTO_SCENES } from "../scenes/photos";
 
 const KEY = "logomotion.project.v1";
 
 /** Fill in anything missing from an older or hand-edited project file. */
+/**
+ * Photo scenes that have never had photos chosen ("" rather than "[]") pick up
+ * every photo in the library, so photos you add show up without extra steps.
+ */
+export function fillPhotoScenes(scenes: SceneInstance[], media: Project["media"]) {
+  const photos = media.filter((m) => m.use === "photo");
+  if (!photos.length) return;
+  for (const s of scenes) {
+    if (PHOTO_SCENES.includes(s.type) && !s.params.images) s.params.images = JSON.stringify(photos.map((m) => ({ id: m.id, span: "auto" })));
+  }
+}
+
 export function normalizeProject(raw: unknown): Project {
   const base = defaultProject();
   if (!raw || typeof raw !== "object") return base;
@@ -18,6 +31,8 @@ export function normalizeProject(raw: unknown): Project {
           return { ...fresh, ...s, params: { ...fresh.params, ...(s.params ?? {}) } };
         })
     : base.scenes;
+  const media: Project["media"] = Array.isArray(p.media) ? p.media.map((m) => ({ ...m, use: m.use ?? "screen", focusX: m.focusX ?? 0.5, focusY: m.focusY ?? 0.5 })) : [];
+  fillPhotoScenes(scenes, media);
   return {
     version: 1,
     template: p.template ?? base.template,
@@ -29,7 +44,7 @@ export function normalizeProject(raw: unknown): Project {
       colors: { ...base.brand.colors, ...(p.brand?.colors ?? {}) },
       font: { ...base.brand.font, ...(p.brand?.font ?? {}) },
     },
-    media: Array.isArray(p.media) ? p.media.map((m) => ({ ...m, use: m.use ?? "screen", focusX: m.focusX ?? 0.5, focusY: m.focusY ?? 0.5 })) : [],
+    media,
     scenes,
   };
 }

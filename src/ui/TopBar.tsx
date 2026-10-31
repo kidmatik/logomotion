@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { Aspect } from "../types";
 import type { Store } from "../state/store";
-import { normalizeProject } from "../state/store";
+import { fillPhotoScenes, normalizeProject } from "../state/store";
 import type { BrandAssets } from "../engine/kit";
 import { exportProjectFile, exportStill, exportVideo } from "../engine/exporter";
 import { templateById } from "../templates";
@@ -50,6 +50,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
       d.aspect = t.aspect;
       d.tempo = { ...t.tempo };
       d.scenes = t.scenes();
+      fillPhotoScenes(d.scenes, d.media);
     });
     clock.seek(0);
   };

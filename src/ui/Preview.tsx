@@ -73,6 +73,7 @@ export function Preview({ project, assets, assetsVersion }: { project: Project; 
   const dpr = Math.min(2, window.devicePixelRatio || 1);
   return (
     <div className="stage-wrap" ref={wrap}>
+      <div className="stage-frame" style={{ width: box.w, height: box.h }}>
       <canvas
         ref={canvas}
         className="stage"
@@ -82,6 +83,11 @@ export function Preview({ project, assets, assetsVersion }: { project: Project; 
         onClick={() => clock.toggle()}
         aria-label="Video preview. Click to play or pause."
       />
+      {/* Preview-only mark. It sits on top of the canvas, so downloads never include it. */}
+      <span className="preview-mark" aria-hidden>
+        LogoMotion by Matan.Design
+      </span>
+      </div>
     </div>
   );
 }

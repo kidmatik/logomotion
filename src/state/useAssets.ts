@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { Project } from "../types";
 import type { BrandAssets, MediaEl } from "../engine/kit";
 import { loadSvg, outlineSvg, type LogoAsset } from "../brand/logo";
@@ -76,10 +76,10 @@ export function useAssets(project: Project) {
   }, [mediaKey]);
 
   /** Put a freshly added element straight into the map so it shows without a reload. */
-  const addMediaElement = (id: string, el: MediaEl) => {
+  const addMediaElement = useCallback((id: string, el: MediaEl) => {
     mediaRef.current.set(id, el);
     setVersion((v) => v + 1);
-  };
+  }, []);
 
   // Keep media in project order so "first screen" is predictable.
   const ordered = new Map<string, MediaEl>();

@@ -1,9 +1,8 @@
 import { useState } from "react";
 import type { Store } from "../state/store";
-import type { MediaItem } from "../types";
 import type { MediaEl } from "../engine/kit";
-import { blobToElement, capturePage, deleteBlob, elementSize, newId, putBlob } from "../brand/media";
-import { createScene } from "../scenes/registry";
+import { capturePage } from "../brand/media";
+import { useLibrary, type NewMedia } from "../state/library";
 import { Help, Section, Select } from "./controls";
 import { DropZone } from "./DropZone";
 import { Icon } from "./icons";
@@ -18,7 +17,7 @@ function prettyUrl(u: string) {
   }
 }
 
-export function MediaPanel({ store, media, onAdded }: { store: Store; media: Map<string, MediaEl>; onAdded: (id: string, el: MediaEl) => void }) {
+export function MediaPanel({ store, media }: { store: Store; media: Map<string, MediaEl> }) {
   const { project, update } = store;
   const [url, setUrl] = useState("");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
@@ -27,41 +26,8 @@ export function MediaPanel({ store, media, onAdded }: { store: Store; media: Map
   const [section, setSection] = useState<"photos" | "screens">("photos");
   const screens = project.media.filter((m) => m.use !== "photo");
 
-  const add = async (blob: Blob, meta: Omit<MediaItem, "id" | "width" | "height">) => {
-    const id = newId();
-    const el = await blobToElement(blob, meta.kind);
-    await putBlob(id, blob);
-    onAdded(id, el);
-    const { width, height } = elementSize(el);
-    const item: MediaItem = { id, width, height, ...meta };
-    update((d) => {
-      d.media.push(item);
-      if (item.use === "photo") {
-        // Switch on a photo scene the first time photos arrive.
-        const photoScenes = d.scenes.filter((s) => s.type === "bento" || s.type === "slideshow");
-        if (!photoScenes.some((s) => s.enabled)) {
-          const s = photoScenes.find((x) => x.type === "bento") ?? photoScenes[0];
-          if (s) s.enabled = true;
-          else d.scenes.splice(Math.min(3, d.scenes.length), 0, createScene("bento", "slide"));
-        }
-        return;
-      }
-      // Make sure there's a scene to show it: reuse an unused screens scene, else add one.
-      const used = new Set(d.scenes.filter((s) => s.type === "screens").map((s) => s.params.media));
-      const idle = d.scenes.find((s) => s.type === "screens" && (!s.params.media || !d.media.some((m) => m.id === s.params.media)) && !used.has(id));
-      if (idle && !idle.enabled) {
-        idle.enabled = true;
-        idle.params.media = id;
-      } else if (!idle) {
-        const s = createScene("screens", "slide");
-        s.params.media = id;
-        const at = d.scenes.findIndex((x) => x.type === "browser");
-        d.scenes.splice(at >= 0 ? at + 1 : d.scenes.length, 0, s);
-      } else {
-        idle.params.media = id;
-      }
-    });
-  };
+  const lib = useLibrary();
+  const add = async (blob: Blob, meta: NewMedia) => lib.commit([await lib.ingest(blob, meta)]);
 
   const onFiles = async (files: File[]) => {
     setError(null);
@@ -96,23 +62,7 @@ export function MediaPanel({ store, media, onAdded }: { store: Store; media: Map
     }
   };
 
-  const remove = (id: string) => {
-    deleteBlob(id);
-    update((d) => {
-      d.media = d.media.filter((m) => m.id !== id);
-      d.scenes.forEach((s) => {
-        if (s.type === "screens" && s.params.media === id) s.params.media = "";
-        if ((s.type === "slideshow" || s.type === "bento") && typeof s.params.images === "string" && s.params.images.includes(id)) {
-          try {
-            const list = JSON.parse(s.params.images).filter((g: { id: string }) => g.id !== id);
-            s.params.images = list.length ? JSON.stringify(list) : "";
-          } catch {
-            s.params.images = "";
-          }
-        }
-      });
-    });
-  };
+  const remove = lib.remove;
 
   return (
     <div className="panel-scroll">

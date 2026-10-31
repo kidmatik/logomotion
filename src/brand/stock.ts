@@ -7,6 +7,7 @@
 import type { MediaCredit } from "../types";
 
 export type Provider = MediaCredit["provider"];
+export type Orientation = "landscape" | "portrait" | "squarish" | "any";
 
 export interface StockPhoto {
   provider: Provider;
@@ -26,11 +27,27 @@ export interface StockPhoto {
 const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY as string | undefined;
 const PEXELS_KEY = import.meta.env.VITE_PEXELS_API_KEY as string | undefined;
 
-export const PROVIDERS: { id: Provider; name: string; enabled: boolean; site: string }[] = [
-  { id: "unsplash", name: "Unsplash", enabled: !!UNSPLASH_KEY, site: "https://unsplash.com" },
-  { id: "pexels", name: "Pexels", enabled: !!PEXELS_KEY, site: "https://www.pexels.com" },
-  { id: "openverse", name: "Openverse", enabled: true, site: "https://openverse.org" },
+export const PROVIDERS: { id: Provider; name: string; enabled: boolean; site: string; blurb: string }[] = [
+  { id: "unsplash", name: "Unsplash", enabled: !!UNSPLASH_KEY, site: "https://unsplash.com", blurb: "Pro photos, free" },
+  { id: "pexels", name: "Pexels", enabled: !!PEXELS_KEY, site: "https://www.pexels.com", blurb: "Free stock photos" },
+  { id: "openverse", name: "Openverse", enabled: true, site: "https://openverse.org", blurb: "Open licences" },
 ];
+
+/** Whether the server-side Unsplash proxy (api/unsplash.ts) has a key. Checked once per page load. */
+let proxyCheck: Promise<boolean> | null = null;
+function unsplashProxy(): Promise<boolean> {
+  proxyCheck ??= fetch("/api/unsplash?status=1")
+    .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : { enabled: false }))
+    .then((j) => Boolean(j.enabled))
+    .catch(() => false);
+  return proxyCheck;
+}
+
+/** Providers that work right now, best first. */
+export async function availableProviders(): Promise<Provider[]> {
+  const proxy = await unsplashProxy();
+  return PROVIDERS.filter((p) => p.enabled || (p.id === "unsplash" && proxy)).map((p) => p.id);
+}
 
 export function defaultProvider(): Provider {
   return PROVIDERS.find((p) => p.enabled)!.id;
@@ -38,7 +55,6 @@ export function defaultProvider(): Provider {
 
 const UTM = "utm_source=logomotion&utm_medium=referral";
 
-type Orientation = "landscape" | "portrait" | "squarish" | "any";
 
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) throw new Error(res.status === 429 || res.status === 403 ? "The photo service is busy. Try again in a minute." : `Search failed (${res.status}).`);
@@ -57,9 +73,12 @@ interface UnsplashPhoto {
 
 async function searchUnsplash(q: string, page: number, orientation: Orientation): Promise<StockPhoto[]> {
   const o = orientation === "any" ? "" : `&orientation=${orientation}`;
-  const res = await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&page=${page}&per_page=24&content_filter=high${o}`, {
-    headers: { Authorization: `Client-ID ${UNSPLASH_KEY}`, "Accept-Version": "v1" },
-  });
+  // A key in the browser build talks to Unsplash directly; otherwise go through our proxy.
+  const res = UNSPLASH_KEY
+    ? await fetch(`https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&page=${page}&per_page=24&content_filter=high${o}`, {
+        headers: { Authorization: `Client-ID ${UNSPLASH_KEY}`, "Accept-Version": "v1" },
+      })
+    : await fetch(`/api/unsplash?q=${encodeURIComponent(q)}&page=${page}${o}`);
   const data = await json<{ results: UnsplashPhoto[] }>(res);
   return data.results.map((p) => ({
     provider: "unsplash",
@@ -161,15 +180,16 @@ async function searchOpenverse(q: string, page: number, orientation: Orientation
 }
 
 export function searchStock(provider: Provider, q: string, page = 1, orientation: Orientation = "any"): Promise<StockPhoto[]> {
-  if (provider === "unsplash" && UNSPLASH_KEY) return searchUnsplash(q, page, orientation);
+  if (provider === "unsplash") return searchUnsplash(q, page, orientation);
   if (provider === "pexels" && PEXELS_KEY) return searchPexels(q, page, orientation);
   return searchOpenverse(q, page, orientation);
 }
 
 /** Download a picked photo as a blob. Throws if no source allows it. */
 export async function downloadStock(photo: StockPhoto): Promise<Blob> {
-  if (photo.provider === "unsplash" && photo.trackUrl && UNSPLASH_KEY) {
-    fetch(photo.trackUrl, { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }).catch(() => undefined);
+  if (photo.provider === "unsplash") {
+    if (UNSPLASH_KEY && photo.trackUrl) fetch(photo.trackUrl, { headers: { Authorization: `Client-ID ${UNSPLASH_KEY}` } }).catch(() => undefined);
+    else fetch(`/api/unsplash?track=${encodeURIComponent(photo.id)}`).catch(() => undefined);
   }
   for (const url of photo.full) {
     try {

@@ -10,7 +10,7 @@ import { Icon } from "./icons";
 type AddFn = (blob: Blob, meta: Omit<MediaItem, "id" | "width" | "height">) => Promise<void>;
 
 /** Click on the photo to choose the point that must stay in frame when it's cropped. */
-function FocusEditor({ item, store }: { item: MediaItem; store: Store }) {
+export function FocusEditor({ item, store }: { item: MediaItem; store: Store }) {
   const el = useMediaEls().get(item.id);
   if (!el || el instanceof HTMLVideoElement) return null;
   return (

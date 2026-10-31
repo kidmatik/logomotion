@@ -11,6 +11,17 @@ function Svg({ size = 18, children, ...rest }: P) {
 }
 
 export const Icon = {
+  Search: (p: P) => (
+    <Svg {...p}>
+      <circle cx="11" cy="11" r="6.5" />
+      <path d="M20 20l-4.2-4.2" />
+    </Svg>
+  ),
+  Sparkle: (p: P) => (
+    <Svg {...p}>
+      <path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9-1.9 5.1-1.9-5.1L5 10.5l5.1-1.9z" />
+    </Svg>
+  ),
   Check: (p: P) => (
     <Svg {...p}>
       <path d="M5 12.5l4.5 4.5L19 7.5" />

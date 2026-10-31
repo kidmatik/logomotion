@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore } from "./state/store";
 import { useAssets } from "./state/useAssets";
 import { clock } from "./state/clock";
@@ -8,7 +8,8 @@ import { BrandPanel } from "./ui/BrandPanel";
 import { ScenesPanel } from "./ui/ScenesPanel";
 import { MediaPanel } from "./ui/MediaPanel";
 import { templateById } from "./templates";
-import { MediaContext } from "./state/mediaContext";
+import { AssetsContext, MediaContext } from "./state/mediaContext";
+import { LibraryContext, createLibrary } from "./state/library";
 
 type Tab = "brand" | "scenes" | "media";
 
@@ -17,6 +18,10 @@ export default function App() {
   const { project, undo, redo } = store;
   const { assets, version, addMediaElement } = useAssets(project);
   const [tab, setTab] = useState<Tab>("brand");
+  // store.update is stable, so the library only needs building once.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const library = useMemo(() => createLibrary(store, addMediaElement), [store.update, addMediaElement]);
+  const assetsValue = useMemo(() => ({ assets, version }), [assets, version]);
 
   // Keyboard: space to play/pause, arrows to step, Ctrl+Z / Ctrl+Shift+Z for undo/redo.
   useEffect(() => {
@@ -42,6 +47,8 @@ export default function App() {
 
   return (
     <MediaContext.Provider value={assets.media}>
+    <AssetsContext.Provider value={assetsValue}>
+    <LibraryContext.Provider value={library}>
     <div className="app">
       <TopBar store={store} assets={assets} />
       <main className="workspace">
@@ -70,10 +77,12 @@ export default function App() {
           </nav>
           {tab === "brand" && <BrandPanel store={store} />}
           {tab === "scenes" && <ScenesPanel store={store} />}
-          {tab === "media" && <MediaPanel store={store} media={assets.media} onAdded={addMediaElement} />}
+          {tab === "media" && <MediaPanel store={store} media={assets.media} />}
         </aside>
       </main>
     </div>
+    </LibraryContext.Provider>
+    </AssetsContext.Provider>
     </MediaContext.Provider>
   );
 }

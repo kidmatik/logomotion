@@ -24,32 +24,51 @@ export function parseGallery(v: ParamValue | undefined): GalleryItem[] {
   }
 }
 
-/** The photos a scene shows: its own picks, or every photo in the library when none are picked. */
+export const PHOTO_SCENES = ["slideshow", "bento"];
+
+/** The photos a scene shows, in order. An empty list means the scene shows brand graphics instead. */
 function photosFor(rc: RenderCtx, v: ParamValue | undefined): GalleryItem[] {
-  const picked = parseGallery(v).filter((g) => rc.assets.media.has(g.id));
-  if (picked.length) return picked;
-  return [...rc.assets.mediaInfo.values()].filter((m) => m.use === "photo" && rc.assets.media.has(m.id)).map((m) => ({ id: m.id, span: "auto" as Span }));
+  return parseGallery(v).filter((g) => rc.assets.media.has(g.id));
 }
+
+/** How long transitions take, as a multiplier. */
+const SPEED: Record<string, number> = { snappy: 0.6, smooth: 1, slow: 1.6 };
+const speedParam: ParamDef = {
+  key: "speed",
+  label: "Animation speed",
+  type: "select",
+  default: "smooth",
+  group: "Animation",
+  options: [
+    { value: "snappy", label: "Snappy" },
+    { value: "smooth", label: "Smooth" },
+    { value: "slow", label: "Slow" },
+  ],
+};
 
 const treatmentParam: ParamDef = {
   key: "treatment",
   label: "Colour treatment",
   type: "select",
   default: "none",
+  group: "Look",
+  visual: true,
+  previewAt: "settled",
   options: [
-    { value: "none", label: "Original colours" },
-    { value: "duotone", label: "Duotone (Black + accent)" },
+    { value: "none", label: "Original" },
+    { value: "duotone", label: "Duotone" },
     { value: "tint", label: "Brand tint" },
     { value: "mono", label: "Black and white" },
   ],
 };
 
-const accentParam: ParamDef = { key: "accent", label: "Accent colour", type: "role", default: "primary", roles: ["primary", "secondary"] };
+const accentParam: ParamDef = { key: "accent", label: "Accent colour", type: "role", default: "primary", roles: ["primary", "secondary"], group: "Look" };
 
 const captionParam: ParamDef = {
   key: "caption",
   label: "Caption",
   type: "select",
+  group: "On top",
   default: "none",
   options: [
     { value: "none", label: "None" },
@@ -61,13 +80,6 @@ const captionParam: ParamDef = {
 
 function captionFor(rc: RenderCtx, v: ParamValue) {
   return v === "tagline" ? rc.brand.tagline : v === "website" ? rc.brand.website : v === "name" ? rc.brand.name : "";
-}
-
-function emptyState(rc: RenderCtx, bg: string) {
-  rc.fill(bg);
-  const ink = bestOn(bg, [rc.colors.black, rc.colors.white]);
-  rc.drawLogo(rc.w / 2, rc.h / 2 - 50 * rc.u, rc.logoHeight(140), rc.colors.primary);
-  rc.text("Add photos in the Media tab", rc.w / 2, rc.h / 2 + 90 * rc.u, 32 * rc.u, ink, { align: "center", alpha: 0.6, family: `"Inter", system-ui` });
 }
 
 /** Small "Photo by …" line in the corner, for licences that ask for attribution. */
@@ -92,17 +104,33 @@ export const slideshowScene: SceneDef = {
     { key: "images", label: "Photos", type: "gallery", default: "" },
     {
       key: "animation",
-      label: "Animation",
+      label: "Transition between photos",
       type: "select",
       default: "kenburns",
+      group: "Animation",
+      visual: true,
+      previewAt: "motion",
       options: [
-        { value: "kenburns", label: "Ken Burns (slow zoom + crossfade)" },
-        { value: "push", label: "Push (slide across)" },
+        { value: "kenburns", label: "Crossfade" },
+        { value: "push", label: "Push" },
         { value: "zoom", label: "Zoom through" },
-        { value: "reveal", label: "Brand wipe (colour panel)" },
+        { value: "reveal", label: "Brand wipe" },
         { value: "split", label: "Split strips" },
         { value: "blinds", label: "Blinds" },
         { value: "stack", label: "Stacked prints" },
+      ],
+    },
+    speedParam,
+    {
+      key: "motion",
+      label: "Camera move on each photo",
+      type: "select",
+      default: "subtle",
+      group: "Animation",
+      options: [
+        { value: "none", label: "Still" },
+        { value: "subtle", label: "Subtle drift" },
+        { value: "strong", label: "Strong zoom (Ken Burns)" },
       ],
     },
     {
@@ -110,46 +138,55 @@ export const slideshowScene: SceneDef = {
       label: "Framing",
       type: "select",
       default: "full",
+      group: "Layout",
+      visual: true,
+      previewAt: "settled",
       options: [
         { value: "full", label: "Full bleed" },
-        { value: "inset", label: "Inset card" },
+        { value: "inset", label: "Card" },
       ],
     },
-    { key: "background", label: "Background (inset)", type: "role", default: "white" },
+    { key: "padding", label: "Card margin", type: "number", default: 8, min: 2, max: 20, step: 1, unit: "%", group: "Layout" },
+    { key: "radius", label: "Card corners", type: "number", default: 26, min: 0, max: 80, step: 1, unit: "px", group: "Layout" },
+    { key: "background", label: "Background behind the card", type: "role", default: "white", group: "Layout" },
     treatmentParam,
     accentParam,
-    { key: "showLogo", label: "Logo badge on photos", type: "boolean", default: true },
+    { key: "showLogo", label: "Logo badge on photos", type: "boolean", default: true, group: "On top" },
     captionParam,
-    { key: "credits", label: "Show photo credits", type: "boolean", default: true },
+    { key: "credits", label: "Show photo credits", type: "boolean", default: true, group: "On top" },
   ],
   render(rc, t, duration, p) {
     const { ctx, w, h, u } = rc;
     const bg = rc.role(p.background);
     const photos = photosFor(rc, p.images);
-    if (!photos.length) return emptyState(rc, bg);
+    // No photos picked: the same animations run over brand graphic slides.
+    const slides: { id: string | null; tile: number }[] = photos.length ? photos.map((g, k) => ({ id: g.id, tile: k })) : [0, 1, 2, 3].map((k) => ({ id: null, tile: k }));
+    const graphics = !photos.length;
 
     const anim = String(p.animation) as SlideAnim;
     const treatment = String(p.treatment) as Treatment;
     const accent = rc.role(p.accent);
-    const n = photos.length;
+    const n = slides.length;
     const d = duration / n;
     const i = Math.min(n - 1, Math.floor(t / d));
     const local = t - i * d;
-    const TT = Math.min(0.7, d * 0.45);
+    const TT = Math.min(0.7 * (SPEED[String(p.speed)] ?? 1), d * 0.45);
+    const motion = String(p.motion ?? "subtle");
     const e = i > 0 ? ease.inOutCubic(clamp(local / TT)) : 1;
 
     const inset = p.frame === "inset" || anim === "stack";
-    const pad = inset ? Math.min(w, h) * 0.08 : 0;
+    const pad = inset ? Math.min(w, h) * (Number(p.padding ?? 8) / 100) : 0;
     const box = { x: pad, y: pad, w: w - pad * 2, h: h - pad * 2 - (inset && p.caption !== "none" ? 70 * u : 0) };
-    const radius = inset ? 26 * u : 0;
+    const radius = inset ? Number(p.radius ?? 26) * u : 0;
     rc.fill(inset ? bg : rc.colors.black);
 
     // One slide: the photo with a slow camera move across its whole time on screen.
     const slide = (k: number, lt: number, alpha = 1, scale = 1, dx = 0, dy = 0) => {
-      const item = photos[k];
+      const item = slides[k];
       const life = clamp((lt + TT) / (d + TT));
       const dir = k % 2 ? -1 : 1;
-      const zoom = anim === "kenburns" || anim === "reveal" ? lerp(1.04, 1.16, life) : lerp(1.02, 1.08, life);
+      const zoom = motion === "none" ? 1 : motion === "strong" ? lerp(1.04, 1.22, life) : lerp(1.02, 1.08, life);
+      const drift = motion === "none" ? 0 : 1;
       ctx.save();
       ctx.globalAlpha *= alpha;
       ctx.translate(box.x + box.w / 2 + dx, box.y + box.h / 2 + dy);
@@ -159,7 +196,16 @@ export const slideshowScene: SceneDef = {
         rc.roundRect(0, 0, box.w, box.h, radius);
         ctx.clip();
       }
-      rc.drawCover(item.id, 0, 0, box.w, box.h, { zoom, panX: dir * lerp(-1, 1, life), panY: lerp(-0.5, 0.5, life) * dir, treatment, tint: accent, time: lt + TT });
+      if (item.id) {
+        rc.drawCover(item.id, 0, 0, box.w, box.h, { zoom, panX: drift * dir * lerp(-1, 1, life), panY: drift * lerp(-0.5, 0.5, life) * dir, treatment, tint: accent, time: lt + TT });
+      } else {
+        ctx.save();
+        ctx.translate(box.w / 2, box.h / 2);
+        ctx.scale(zoom, zoom);
+        ctx.translate(-box.w / 2, -box.h / 2);
+        brandTile(rc, { x: 0, y: 0, w: box.w, h: box.h, tile: item.tile });
+        ctx.restore();
+      }
       ctx.restore();
     };
 
@@ -260,7 +306,7 @@ export const slideshowScene: SceneDef = {
 
     // Brand overlays.
     const onPhotoInk = rc.colors.white;
-    if (p.showLogo) {
+    if (p.showLogo && !graphics) {
       const lh = rc.logoHeight(54);
       const lx = box.x + 40 * u + rc.logoWidth(lh) / 2, ly = box.y + 40 * u + lh / 2;
       ctx.save();
@@ -283,8 +329,8 @@ export const slideshowScene: SceneDef = {
         rc.text(cap, 60 * u, h - 70 * u + (1 - a) * 20 * u, 54 * u, onPhotoInk, { alpha: a });
       }
     }
-    if (p.credits) {
-      const ids = [photos[i].id];
+    if (p.credits && slides[i].id) {
+      const ids = [slides[i].id!];
       if (inset) drawCredits(rc, ids, w - pad, h - pad * 0.4, bestOn(bg, [rc.colors.black, rc.colors.white]));
       else drawCredits(rc, ids, w - 30 * u, h - 26 * u, onPhotoInk);
     }
@@ -303,28 +349,37 @@ interface Cell {
   tile: number;
 }
 
-function gridFor(w: number, h: number) {
+function gridFor(w: number, h: number, density = "normal") {
   const r = w / h;
-  if (r > 1.3) return { cols: 4, rows: 3 };
-  if (r > 0.9) return { cols: 3, rows: 3 };
-  if (r > 0.7) return { cols: 3, rows: 4 };
-  return { cols: 2, rows: 4 };
+  const base = r > 1.3 ? { cols: 4, rows: 3 } : r > 0.9 ? { cols: 3, rows: 3 } : r > 0.7 ? { cols: 3, rows: 4 } : { cols: 2, rows: 4 };
+  const d = density === "fewer" ? -1 : density === "more" ? 1 : 0;
+  return { cols: Math.max(2, base.cols + d), rows: Math.max(2, base.rows + d) };
 }
 
-function spanFor(item: GalleryItem, index: number, rc: RenderCtx, cols: number, rows: number): [number, number] {
+/** Tile-size patterns for the layout presets. A size set on a photo itself always wins. */
+const LAYOUTS: Record<string, (i: number, ratio: number) => Span> = {
+  auto: (i, r) => (i === 0 ? "2x2" : r > 1.45 ? "2x1" : r < 0.75 ? "1x2" : "1x1"),
+  hero: (i) => (i === 0 ? "2x2" : "1x1"),
+  uniform: () => "1x1",
+  wide: (i) => (i === 0 ? "2x2" : i % 2 ? "2x1" : "1x1"),
+  tall: (i) => (i === 0 ? "2x2" : i % 2 ? "1x2" : "1x1"),
+  mosaic: (i) => (["2x2", "1x1", "1x2", "1x1", "2x1", "1x1"] as Span[])[i % 6],
+};
+
+function spanFor(item: GalleryItem, index: number, rc: RenderCtx, cols: number, rows: number, preset: string): [number, number] {
   let s = item.span;
   if (s === "auto") {
     const info = rc.mediaInfo(item.id);
     const r = info ? info.width / Math.max(1, info.height) : 1;
-    s = index === 0 ? "2x2" : r > 1.45 ? "2x1" : r < 0.75 ? "1x2" : "1x1";
+    s = (LAYOUTS[preset] ?? LAYOUTS.auto)(index, r);
   }
   const [a, b] = s.split("x").map(Number);
   return [Math.min(a, cols), Math.min(b, rows)];
 }
 
 /** Pack photos into the grid first-fit, then fill the gaps with brand tiles. */
-function layout(rc: RenderCtx, items: GalleryItem[], brandTiles: boolean, gap: number, pad: number, bottom = 0): Cell[] {
-  const { cols, rows } = gridFor(rc.w, rc.h);
+function layout(rc: RenderCtx, items: GalleryItem[], brandTiles: boolean, gap: number, pad: number, bottom: number, preset: string, density: string): Cell[] {
+  const { cols, rows } = gridFor(rc.w, rc.h, density);
   const used: boolean[][] = Array.from({ length: rows }, () => Array(cols).fill(false));
   const placed: { c: number; r: number; sw: number; sh: number; id: string | null; tile: number }[] = [];
   const fits = (c: number, r: number, sw: number, sh: number) => {
@@ -340,7 +395,7 @@ function layout(rc: RenderCtx, items: GalleryItem[], brandTiles: boolean, gap: n
     for (let y = r; y < r + sh; y++) for (let x = c; x < c + sw; x++) used[y][x] = true;
   };
   items.forEach((it, i) => {
-    let [sw, sh] = spanFor(it, i, rc, cols, rows);
+    let [sw, sh] = spanFor(it, i, rc, cols, rows, preset);
     let spot = place(sw, sh);
     if (!spot) {
       sw = 1;
@@ -374,7 +429,7 @@ function layout(rc: RenderCtx, items: GalleryItem[], brandTiles: boolean, gap: n
   }));
 }
 
-function brandTile(rc: RenderCtx, cell: Cell) {
+function brandTile(rc: RenderCtx, cell: { x: number; y: number; w: number; h: number; tile: number }) {
   const { ctx } = rc;
   const c = rc.colors;
   const kinds = [
@@ -419,38 +474,74 @@ export const bentoScene: SceneDef = {
     { key: "images", label: "Photos and tile sizes", type: "gallery", default: "", spans: true },
     {
       key: "animation",
-      label: "Animation",
+      label: "How the tiles come in",
       type: "select",
       default: "pop",
+      group: "Animation",
+      visual: true,
+      previewAt: "motion",
       options: [
         { value: "pop", label: "Pop in" },
         { value: "rise", label: "Rise up" },
         { value: "mask", label: "Mask reveal" },
-        { value: "cascade", label: "Diagonal cascade" },
+        { value: "cascade", label: "Cascade" },
         { value: "shuffle", label: "Shuffle in" },
-        { value: "zoomout", label: "Zoom out from hero" },
+        { value: "zoomout", label: "Zoom out" },
       ],
     },
-    { key: "motion", label: "Slow motion inside tiles", type: "boolean", default: true },
-    { key: "brandTiles", label: "Fill gaps with brand tiles", type: "boolean", default: true },
-    { key: "background", label: "Background", type: "role", default: "white" },
-    { key: "gap", label: "Gap", type: "number", default: 14, min: 0, max: 48, step: 1, unit: "px" },
-    { key: "radius", label: "Corner radius", type: "number", default: 22, min: 0, max: 60, step: 1, unit: "px" },
+    speedParam,
+    { key: "stagger", label: "Delay between tiles", type: "number", default: 0.09, min: 0, max: 0.3, step: 0.01, unit: "s", group: "Animation" },
+    { key: "motion", label: "Slow motion inside tiles", type: "boolean", default: true, group: "Animation" },
+    {
+      key: "layout",
+      label: "Grid layout",
+      type: "select",
+      default: "auto",
+      group: "Layout",
+      visual: true,
+      previewAt: "settled",
+      options: [
+        { value: "auto", label: "Smart" },
+        { value: "hero", label: "Hero" },
+        { value: "mosaic", label: "Mosaic" },
+        { value: "wide", label: "Wide" },
+        { value: "tall", label: "Tall" },
+        { value: "uniform", label: "Even" },
+      ],
+    },
+    {
+      key: "density",
+      label: "Number of tiles",
+      type: "select",
+      default: "normal",
+      group: "Layout",
+      options: [
+        { value: "fewer", label: "Fewer, bigger tiles" },
+        { value: "normal", label: "Balanced" },
+        { value: "more", label: "More, smaller tiles" },
+      ],
+    },
+    { key: "brandTiles", label: "Fill gaps with brand graphics", type: "boolean", default: true, group: "Layout" },
+    { key: "gap", label: "Gap", type: "number", default: 14, min: 0, max: 48, step: 1, unit: "px", group: "Layout" },
+    { key: "radius", label: "Corner radius", type: "number", default: 22, min: 0, max: 60, step: 1, unit: "px", group: "Layout" },
+    { key: "background", label: "Background", type: "role", default: "white", group: "Look" },
     treatmentParam,
     accentParam,
-    { key: "credits", label: "Show photo credits", type: "boolean", default: true },
+    { key: "credits", label: "Show photo credits", type: "boolean", default: true, group: "On top" },
   ],
   render(rc, t, duration, p) {
     const { ctx, w, h, u } = rc;
     const bg = rc.role(p.background);
     const photos = photosFor(rc, p.images);
-    if (!photos.length && !p.brandTiles) return emptyState(rc, bg);
     rc.fill(bg);
     const gap = Number(p.gap) * u;
     const pad = Math.max(gap, 24 * u);
     const radius = Number(p.radius) * u;
     const hasCredits = Boolean(p.credits) && photos.some((g) => rc.mediaInfo(g.id)?.credit);
-    const cells = layout(rc, photos, Boolean(p.brandTiles), gap, pad, hasCredits ? 26 * u : 0);
+    // With no photos the whole grid is brand graphics.
+    const cells = layout(rc, photos, Boolean(p.brandTiles) || !photos.length, gap, pad, hasCredits ? 26 * u : 0, String(p.layout ?? "auto"), String(p.density ?? "normal"));
+    const sp = SPEED[String(p.speed)] ?? 1;
+    const stagger = Number(p.stagger ?? 0.09);
     const anim = String(p.animation) as BentoAnim;
     const treatment = String(p.treatment) as Treatment;
     const accent = rc.role(p.accent);
@@ -460,9 +551,9 @@ export const bentoScene: SceneDef = {
     const hero = cells.reduce((a, b) => (b.w * b.h > a.w * a.h ? b : a), cells[0]);
 
     cells.forEach((cell, i) => {
-      const order = anim === "cascade" ? (cell.x / w + cell.y / h) * 0.9 : i * 0.09;
-      const start = anim === "zoomout" ? (cell === hero ? 0 : 0.7 + order * 0.5) : 0.05 + order;
-      const k = seg(t, start, start + 0.55);
+      const order = anim === "cascade" ? (cell.x / w + cell.y / h) * stagger * 10 : i * stagger;
+      const start = anim === "zoomout" ? (cell === hero ? 0 : 0.7 * sp + order * 0.5) : 0.05 + order * sp;
+      const k = seg(t, start, start + 0.55 * sp);
       if (k <= 0) return;
       const eo = ease.outCubic(k);
       ctx.save();
@@ -519,7 +610,7 @@ export const bentoScene: SceneDef = {
 
     if (anim === "zoomout" && hero) {
       // Fake the camera pull-back by drawing the hero full-frame first, then shrinking it into place.
-      const k = ease.inOutQuint(seg(t, 0.1, 1.0));
+      const k = ease.inOutQuint(seg(t, 0.1, 0.1 + 0.9 * sp));
       if (k < 1 && hero.id) {
         const x = lerp(0, hero.x, k), y = lerp(0, hero.y, k), cw = lerp(w, hero.w, k), chh = lerp(h, hero.h, k);
         ctx.save();
@@ -533,3 +624,18 @@ export const bentoScene: SceneDef = {
     if (hasCredits) drawCredits(rc, cells.filter((c) => c.id).map((c) => c.id!), w - pad, h - pad - 4 * u, bestOn(bg, [rc.colors.black, rc.colors.white]));
   },
 };
+
+/**
+ * A moment that shows off a setting in a still thumbnail: mid-transition for
+ * animations, or once everything has landed for looks and layouts.
+ */
+export function previewTime(type: string, duration: number, params: Record<string, ParamValue>, mode: "motion" | "settled") {
+  if (type === "slideshow") {
+    const n = Math.max(2, parseGallery(params.images).length || 4);
+    const d = duration / n;
+    const TT = Math.min(0.7 * (SPEED[String(params.speed)] ?? 1), d * 0.45);
+    return mode === "motion" ? d + TT * 0.5 : d * 0.6;
+  }
+  if (type === "bento") return mode === "motion" ? 0.5 * (SPEED[String(params.speed)] ?? 1) : duration * 0.92;
+  return mode === "motion" ? Math.min(0.6, duration / 2) : duration * 0.9;
+}

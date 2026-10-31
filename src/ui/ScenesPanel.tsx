@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Store } from "../state/store";
+import { fillPhotoScenes, type Store } from "../state/store";
 import type { ColorRole, SceneInstance, TransitionKind } from "../types";
 import { SCENES, createScene, sceneDef } from "../scenes/registry";
 import { resolveColors, type ParamDef } from "../engine/kit";
@@ -8,6 +8,7 @@ import { clock } from "../state/clock";
 import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls";
 import { Icon } from "./icons";
 import { GalleryControl } from "./GalleryControl";
+import { VisualSelect } from "./VisualSelect";
 
 const TRANSITIONS: { value: TransitionKind; label: string }[] = [
   { value: "cut", label: "Cut" },
@@ -17,7 +18,7 @@ const TRANSITIONS: { value: TransitionKind; label: string }[] = [
   { value: "zoom", label: "Zoom" },
 ];
 
-function ParamControl({ def, value, onChange, store }: { def: ParamDef; value: unknown; onChange: (v: string | number | boolean) => void; store: Store }) {
+function ParamControl({ def, value, onChange, store, scene }: { def: ParamDef; value: unknown; onChange: (v: string | number | boolean) => void; store: Store; scene: SceneInstance }) {
   const colors = resolveColors(store.project.brand);
   switch (def.type) {
     case "role":
@@ -37,6 +38,7 @@ function ParamControl({ def, value, onChange, store }: { def: ParamDef; value: u
     case "number":
       return <Slider label={def.label} value={Number(value)} min={def.min} max={def.max} step={def.step} unit={def.unit} onChange={onChange} />;
     case "select":
+      if (def.visual) return <VisualSelect def={def} value={String(value)} project={store.project} scene={scene} onChange={onChange} />;
       return (
         <div className="field">
           <span className="field-label">{def.label}</span>
@@ -51,7 +53,19 @@ function ParamControl({ def, value, onChange, store }: { def: ParamDef; value: u
         </div>
       );
     case "gallery":
-      return <GalleryControl label={def.label} value={String(value ?? "")} spans={def.spans} store={store} onChange={onChange} />;
+      return (
+        <GalleryControl
+          label={def.label}
+          value={String(value ?? "")}
+          spans={def.spans}
+          max={def.max}
+          store={store}
+          sceneUid={scene.uid}
+          paramKey={def.key}
+          sceneName={sceneDef(scene.type)?.name ?? "this scene"}
+          onChange={onChange}
+        />
+      );
     case "media": {
       const media = store.project.media;
       return (
@@ -144,8 +158,11 @@ function SceneRow({
             <span className="field-label">Transition in</span>
             <Select value={scene.transition} options={TRANSITIONS} onChange={(v) => set((s) => void (s.transition = v))} />
           </div>
-          {def.params.map((p) => (
-            <ParamControl key={p.key} def={p} value={scene.params[p.key]} store={store} onChange={(v) => set((s) => void (s.params[p.key] = v), p.type === "text" || p.type === "number" ? p.key : undefined)} />
+          {def.params.map((p, i) => (
+            <div key={p.key} className="param">
+              {p.group && p.group !== def.params[i - 1]?.group && <h4 className="param-group">{p.group}</h4>}
+              <ParamControl def={p} value={scene.params[p.key]} store={store} scene={scene} onChange={(v) => set((s) => void (s.params[p.key] = v), p.type === "text" || p.type === "number" ? p.key : undefined)} />
+            </div>
           ))}
           <div className="scene-actions">
             <button
@@ -167,6 +184,7 @@ function SceneRow({
               onClick={() =>
                 set((s) => {
                   const fresh = createScene(s.type);
+                  fillPhotoScenes([fresh], store.project.media);
                   s.params = fresh.params;
                   s.duration = fresh.duration;
                 })
@@ -253,6 +271,7 @@ export function ScenesPanel({ store }: { store: Store }) {
                   type="button"
                   onClick={() => {
                     const s = createScene(def.type);
+                    fillPhotoScenes([s], project.media);
                     update((d) => void d.scenes.push(s));
                     setOpen(s.uid);
                     setAdding(false);

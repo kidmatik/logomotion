@@ -106,15 +106,27 @@ export interface VideoRequest {
 
 /* ---------- scene definitions ---------- */
 
+/** Shared by every param: an optional heading to group related controls under in the editor. */
+interface ParamBase {
+  key: string;
+  label: string;
+  help?: string;
+  group?: string;
+}
+
 export type ParamDef =
-  | { key: string; label: string; type: "role"; default: ColorRole; roles?: ColorRole[]; help?: string }
-  | { key: string; label: string; type: "text"; default: string; placeholder?: string; help?: string }
-  | { key: string; label: string; type: "number"; default: number; min: number; max: number; step: number; unit?: string; help?: string }
-  | { key: string; label: string; type: "select"; default: string; options: { value: string; label: string }[]; help?: string }
-  | { key: string; label: string; type: "boolean"; default: boolean; help?: string }
-  | { key: string; label: string; type: "media"; default: string; help?: string }
-  /** An ordered list of photos, stored as JSON: [{ id, span }]. Empty means "all photos". */
-  | { key: string; label: string; type: "gallery"; default: string; spans?: boolean; help?: string };
+  | (ParamBase & { type: "role"; default: ColorRole; roles?: ColorRole[] })
+  | (ParamBase & { type: "text"; default: string; placeholder?: string })
+  | (ParamBase & { type: "number"; default: number; min: number; max: number; step: number; unit?: string })
+  /**
+   * visual: show the options as live thumbnails of the scene instead of a dropdown.
+   * previewAt: which moment of the scene the thumbnail freezes on ("motion" mid-animation, "settled" once it has landed).
+   */
+  | (ParamBase & { type: "select"; default: string; options: { value: string; label: string }[]; visual?: boolean; previewAt?: "motion" | "settled" })
+  | (ParamBase & { type: "boolean"; default: boolean })
+  | (ParamBase & { type: "media"; default: string })
+  /** An ordered list of photos, stored as JSON: [{ id, span }]. Empty means "use brand graphics". max limits how many. */
+  | (ParamBase & { type: "gallery"; default: string; spans?: boolean; max?: number });
 
 export interface SceneDef {
   type: string;
