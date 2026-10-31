@@ -170,14 +170,17 @@ export function PhotoPicker({ project, target, title, onClose }: { project: Proj
   };
 
   const sources: { id: Source; name: string; blurb: string; icon: JSX.Element }[] = [
-    ...PROVIDERS.map((p) => ({ id: p.id as Source, name: p.name, blurb: providers.includes(p.id) ? p.blurb : "Needs a key", icon: <Icon.Search size={16} /> })).filter(
-      (s) => providers.includes(s.id as Provider) || s.id === "unsplash",
-    ),
+    ...PROVIDERS.map((p) => ({ id: p.id as Source, name: p.name, blurb: providers.includes(p.id) ? p.blurb : "Not set up yet", icon: <Icon.Search size={16} /> })),
     { id: "upload", name: "Upload", blurb: "Your own photos", icon: <Icon.Upload size={16} /> },
     { id: "library", name: "In this project", blurb: `${library.length} photo${library.length === 1 ? "" : "s"}`, icon: <Icon.Image size={16} /> },
   ];
 
-  const unsplashMissing = source === "unsplash" && !providers.includes("unsplash");
+  const missing = (source === "unsplash" || source === "pexels") && !providers.includes(source) ? source : null;
+  const SETUP = {
+    pexels: { name: "Pexels", env: "PEXELS_API_KEY", url: "https://www.pexels.com/api/", where: "pexels.com/api", key: "API key" },
+    unsplash: { name: "Unsplash", env: "UNSPLASH_ACCESS_KEY", url: "https://unsplash.com/oauth/applications", where: "unsplash.com/oauth/applications", key: "Access Key" },
+  };
+  const setup = missing ? SETUP[missing] : null;
 
   return (
     <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && !adding && onClose()}>
@@ -215,7 +218,7 @@ export function PhotoPicker({ project, target, title, onClose }: { project: Proj
           </nav>
 
           <section className="picker-main">
-            {isStock && !unsplashMissing && (
+            {isStock && !missing && (
               <>
                 <div className="picker-toolbar">
                 <form
@@ -279,22 +282,22 @@ export function PhotoPicker({ project, target, title, onClose }: { project: Proj
               </>
             )}
 
-            {unsplashMissing && (
+            {setup && (
               <div className="setup-card">
-                <h3>Turn on Unsplash</h3>
-                <p>Unsplash is free, but it needs an access key on the server. It takes about two minutes:</p>
+                <h3>Turn on {setup.name}</h3>
+                <p>{setup.name} is free, but it needs a key on the server. It takes about two minutes:</p>
                 <ol>
                   <li>
-                    Create an app at{" "}
-                    <a href="https://unsplash.com/oauth/applications" target="_blank" rel="noreferrer">
-                      unsplash.com/oauth/applications
-                    </a>{" "}
-                    and copy its <strong>Access Key</strong>.
+                    Get your {setup.key} at{" "}
+                    <a href={setup.url} target="_blank" rel="noreferrer">
+                      {setup.where}
+                    </a>
+                    .
                   </li>
                   <li>
-                    In Vercel, open the project's <strong>Settings → Environment Variables</strong> and add <code>UNSPLASH_ACCESS_KEY</code>.
+                    In Vercel, open the project's <strong>Settings → Environment Variables</strong> and add <code>{setup.env}</code>.
                   </li>
-                  <li>Redeploy. Unsplash then shows up first in this list.</li>
+                  <li>Redeploy. {setup.name} then works right here.</li>
                 </ol>
                 <button type="button" className="ghost-btn" onClick={() => (setSource("openverse"), run(ran || ideas[0], 1, "openverse"))}>
                   Search Openverse instead

@@ -28,25 +28,29 @@ const UNSPLASH_KEY = import.meta.env.VITE_UNSPLASH_ACCESS_KEY as string | undefi
 const PEXELS_KEY = import.meta.env.VITE_PEXELS_API_KEY as string | undefined;
 
 export const PROVIDERS: { id: Provider; name: string; enabled: boolean; site: string; blurb: string }[] = [
-  { id: "unsplash", name: "Unsplash", enabled: !!UNSPLASH_KEY, site: "https://unsplash.com", blurb: "Pro photos, free" },
   { id: "pexels", name: "Pexels", enabled: !!PEXELS_KEY, site: "https://www.pexels.com", blurb: "Free stock photos" },
+  { id: "unsplash", name: "Unsplash", enabled: !!UNSPLASH_KEY, site: "https://unsplash.com", blurb: "Pro photos, free" },
   { id: "openverse", name: "Openverse", enabled: true, site: "https://openverse.org", blurb: "Open licences" },
 ];
 
-/** Whether the server-side Unsplash proxy (api/unsplash.ts) has a key. Checked once per page load. */
-let proxyCheck: Promise<boolean> | null = null;
-function unsplashProxy(): Promise<boolean> {
-  proxyCheck ??= fetch("/api/unsplash?status=1")
-    .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : { enabled: false }))
-    .then((j) => Boolean(j.enabled))
-    .catch(() => false);
-  return proxyCheck;
+/** Whether a server-side proxy (api/unsplash.ts, api/pexels.ts) has its key. Checked once per page load. */
+const proxyChecks = new Map<string, Promise<boolean>>();
+function hasProxy(name: "unsplash" | "pexels"): Promise<boolean> {
+  if (!proxyChecks.has(name))
+    proxyChecks.set(
+      name,
+      fetch(`/api/${name}?status=1`)
+        .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : { enabled: false }))
+        .then((j) => Boolean(j.enabled))
+        .catch(() => false),
+    );
+  return proxyChecks.get(name)!;
 }
 
-/** Providers that work right now, best first. */
+/** Providers that work right now, best first (Pexels, then Unsplash, then Openverse). */
 export async function availableProviders(): Promise<Provider[]> {
-  const proxy = await unsplashProxy();
-  return PROVIDERS.filter((p) => p.enabled || (p.id === "unsplash" && proxy)).map((p) => p.id);
+  const [unsplash, pexels] = await Promise.all([hasProxy("unsplash"), hasProxy("pexels")]);
+  return PROVIDERS.filter((p) => p.enabled || (p.id === "unsplash" && unsplash) || (p.id === "pexels" && pexels)).map((p) => p.id);
 }
 
 export function defaultProvider(): Provider {
@@ -113,9 +117,10 @@ interface PexelsPhoto {
 
 async function searchPexels(q: string, page: number, orientation: Orientation): Promise<StockPhoto[]> {
   const o = orientation === "any" ? "" : `&orientation=${orientation === "squarish" ? "square" : orientation}`;
-  const res = await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&page=${page}&per_page=24${o}`, {
-    headers: { Authorization: PEXELS_KEY! },
-  });
+  // A key in the browser build talks to Pexels directly; otherwise go through our proxy.
+  const res = PEXELS_KEY
+    ? await fetch(`https://api.pexels.com/v1/search?query=${encodeURIComponent(q)}&page=${page}&per_page=24${o}`, { headers: { Authorization: PEXELS_KEY } })
+    : await fetch(`/api/pexels?q=${encodeURIComponent(q)}&page=${page}${o}`);
   const data = await json<{ photos: PexelsPhoto[] }>(res);
   return data.photos.map((p) => ({
     provider: "pexels",
@@ -181,7 +186,7 @@ async function searchOpenverse(q: string, page: number, orientation: Orientation
 
 export function searchStock(provider: Provider, q: string, page = 1, orientation: Orientation = "any"): Promise<StockPhoto[]> {
   if (provider === "unsplash") return searchUnsplash(q, page, orientation);
-  if (provider === "pexels" && PEXELS_KEY) return searchPexels(q, page, orientation);
+  if (provider === "pexels") return searchPexels(q, page, orientation);
   return searchOpenverse(q, page, orientation);
 }
 

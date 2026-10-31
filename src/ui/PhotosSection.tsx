@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Store } from "../state/store";
 import type { MediaItem } from "../types";
 import { useMediaEls } from "../state/mediaContext";
-import { PROVIDERS, creditLine, defaultProvider, downloadStock, searchStock, suggestions, type Provider, type StockPhoto } from "../brand/stock";
+import { PROVIDERS, availableProviders, creditLine, defaultProvider, downloadStock, searchStock, suggestions, type Provider, type StockPhoto } from "../brand/stock";
 import { Help, Section, Select } from "./controls";
 import { DropZone } from "./DropZone";
 import { Icon } from "./icons";
@@ -50,6 +50,14 @@ export function PhotosSection({ store, add, onRemove }: { store: Store; add: Add
   const els = useMediaEls();
   const photos = project.media.filter((m) => m.use === "photo");
   const [provider, setProvider] = useState<Provider>(defaultProvider());
+  const [providers, setProviders] = useState<Provider[]>([defaultProvider()]);
+  useEffect(() => {
+    availableProviders().then((list) => {
+      setProviders(list);
+      setProvider(list[0]);
+    });
+  }, []);
+  const providerNames = PROVIDERS.filter((p) => providers.includes(p.id)).map((p) => p.name);
   const [q, setQ] = useState("");
   const [orientation, setOrientation] = useState<"any" | "landscape" | "portrait" | "squarish">("any");
   const [results, setResults] = useState<StockPhoto[]>([]);
@@ -122,7 +130,7 @@ export function PhotosSection({ store, add, onRemove }: { store: Store; add: Add
     <>
       <Section title="Free stock photos">
         <div className="provider-row">
-          <Select value={provider} options={PROVIDERS.filter((p) => p.enabled).map((p) => ({ value: p.id, label: p.name }))} onChange={setProvider} />
+          <Select value={provider} options={PROVIDERS.filter((p) => providers.includes(p.id)).map((p) => ({ value: p.id, label: p.name }))} onChange={setProvider} />
           <Select
             value={orientation}
             options={[
@@ -170,7 +178,7 @@ export function PhotosSection({ store, add, onRemove }: { store: Store; add: Add
           </>
         )}
         <Help>
-          Photos come from {PROVIDERS.filter((p) => p.enabled).map((p) => p.name).join(", ")} under free licences. Picked photos are saved on this device and credited automatically.
+          Photos come from {providerNames.join(", ")} under free licences. Picked photos are saved on this device and credited automatically.
         </Help>
       </Section>
 
