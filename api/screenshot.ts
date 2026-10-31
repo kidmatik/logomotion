@@ -32,10 +32,10 @@ export async function GET(request: Request) {
     screenshot: "true",
     meta: "false",
     "screenshot.type": "jpeg",
-    "screenshot.quality": "82",
+    "screenshot.quality": "78",
     // Tall enough for the browser scene to scroll through, small enough to send back quickly.
     "viewport.width": mobile ? "390" : "1440",
-    "viewport.height": mobile ? "1700" : "2600",
+    "viewport.height": mobile ? "2400" : "3600",
     "viewport.deviceScaleFactor": mobile ? "2" : "1",
     "viewport.isMobile": mobile ? "true" : "false",
     "viewport.hasTouch": mobile ? "true" : "false",
