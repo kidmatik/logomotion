@@ -345,6 +345,13 @@ export const stingScene: SceneDef = {
       textY = markY;
     }
 
+    // Right-to-left: the mark sits on the right and the name opens leftwards.
+    const rtl = rc.rtl && !(stacked && hasName);
+    if (rtl) {
+      markX = rc.mirror(markX);
+      textX = rc.mirror(textX, word.w);
+    }
+
     const all = [rc.colors.primary, rc.colors.secondary, rc.colors.black, rc.colors.white];
     const accent = rc.role(p.accent);
     const others = [accent, ...all.filter((c) => c !== accent)].filter((c) => c.toLowerCase() !== bg.toLowerCase());
@@ -370,9 +377,12 @@ export const stingScene: SceneDef = {
       ctx.save();
       ctx.beginPath();
       if (stacked) ctx.rect(0, textY - word.h, w, word.h * 2 * nameIn);
-      else ctx.rect(textX - 4, 0, (word.w + 8) * nameIn + 2, h);
+      else if (rtl) {
+        const rw = (word.w + 8) * nameIn + 2;
+        ctx.rect(textX + word.w + 4 - rw, 0, rw, h);
+      } else ctx.rect(textX - 4, 0, (word.w + 8) * nameIn + 2, h);
       ctx.clip();
-      const slide = stacked ? 0 : (1 - nameIn) * -40 * u;
+      const slide = stacked ? 0 : (1 - nameIn) * (rtl ? 40 : -40) * u;
       const drop = stacked ? (1 - nameIn) * 30 * u : 0;
       rc.drawWordmark(textX + slide, textY + drop, size, rc.role(p.nameColor));
       ctx.restore();

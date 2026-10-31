@@ -21,7 +21,40 @@ export const GOOGLE_FONTS = [
   "DM Serif Display",
   "Instrument Serif",
   "JetBrains Mono",
+  // Families with Hebrew letters.
+  "Heebo",
+  "Assistant",
+  "Rubik",
+  "Noto Sans Hebrew",
+  "Secular One",
+  "Varela Round",
+  "Frank Ruhl Libre",
 ];
+
+/** Families in the list above that include Hebrew letters (Latin too). */
+export const HEBREW_FONTS = new Set(["Heebo", "Assistant", "Rubik", "Noto Sans Hebrew", "Secular One", "Varela Round", "Frank Ruhl Libre"]);
+
+/** Weight range each family ships with; Google rejects a request for a weight a family doesn't have. */
+const WEIGHT_RANGE: Record<string, [number, number]> = {
+  Manrope: [200, 800],
+  "Plus Jakarta Sans": [200, 800],
+  Sora: [100, 800],
+  "Space Grotesk": [300, 700],
+  Syne: [400, 800],
+  "Bricolage Grotesque": [200, 800],
+  "Playfair Display": [400, 900],
+  "DM Serif Display": [400, 400],
+  "Instrument Serif": [400, 400],
+  "JetBrains Mono": [100, 800],
+  Assistant: [200, 800],
+  "Secular One": [400, 400],
+  "Varela Round": [400, 400],
+};
+
+function weightsFor(family: string) {
+  const [lo, hi] = WEIGHT_RANGE[family] ?? [100, 900];
+  return [300, 400, 500, 600, 700, 800, 900].filter((w) => w >= lo && w <= hi);
+}
 
 export const WEIGHTS: { value: number; label: string }[] = [
   { value: 300, label: "Light" },
@@ -40,13 +73,13 @@ export function weightLabel(w: number): string {
 const loadedSheets = new Set<string>();
 
 /** Inject the Google Fonts stylesheet for a family (all weights) and wait until it is usable. */
-export async function ensureGoogleFont(family: string, weights: number[] = [300, 400, 500, 600, 700, 800, 900]) {
+export async function ensureGoogleFont(family: string, weights: number[] = weightsFor(family)) {
   if (!loadedSheets.has(family)) {
     loadedSheets.add(family);
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    // Ask for the full weight range; families without a weight fall back to the nearest one.
-    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@300;400;500;600;700;800;900&display=swap`;
+    // Ask only for weights the family has; the browser falls back to the nearest one for the rest.
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}:wght@${weightsFor(family).join(";")}&display=swap`;
     document.head.appendChild(link);
     await new Promise<void>((resolve) => {
       link.onload = () => resolve();
@@ -54,7 +87,8 @@ export async function ensureGoogleFont(family: string, weights: number[] = [300,
     });
   }
   await Promise.all(
-    weights.map((w) => document.fonts.load(`${w} 48px "${family}"`).catch(() => undefined)),
+    // Sample text covers the Latin and Hebrew subsets, which Google serves as separate files.
+    weights.map((w) => document.fonts.load(`${w} 48px "${family}"`, "Aa אב").catch(() => undefined)),
   );
 }
 

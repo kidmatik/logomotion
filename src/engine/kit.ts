@@ -23,6 +23,25 @@ export const ease = {
   outExpo: (t: number) => (t === 1 ? 1 : 1 - Math.pow(2, -10 * t)),
 };
 
+/* ---------- reading direction ---------- */
+
+const RTL_CHARS = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\uFB1D-\uFDFF\uFE70-\uFEFF]/;
+
+/** True when a string contains Hebrew or Arabic letters, so it should be laid out right to left. */
+export function isRtlText(s: string) {
+  return RTL_CHARS.test(s);
+}
+
+/** Whether the whole video reads right to left: set by hand, or detected from the brand's own text. */
+export function brandIsRtl(brand: BrandKit) {
+  if (brand.direction === "rtl") return true;
+  if (brand.direction === "ltr") return false;
+  return isRtlText(`${brand.name} ${brand.nameLine2} ${brand.tagline}`);
+}
+
+/** Fallback for Hebrew letters when the brand font has none. */
+export const HEBREW_FALLBACK = "Heebo";
+
 /* ---------- brand resolution ---------- */
 
 export interface ResolvedColors {
@@ -221,12 +240,25 @@ export class RenderCtx {
     return this.h > this.w;
   }
 
+  /** The video reads right to left (Hebrew or Arabic brand). */
+  get rtl() {
+    return brandIsRtl(this.brand);
+  }
+
+  /**
+   * Mirror a horizontal position for right-to-left videos. Pass the left edge and
+   * width of a box (or a centre and no width) laid out left to right.
+   */
+  mirror(x: number, width = 0) {
+    return this.rtl ? this.w - x - width : x;
+  }
+
   role(r: ColorRole | ParamValue): string {
     return this.colors[(r as ColorRole) in this.colors ? (r as ColorRole) : "primary"];
   }
 
   font(size: number, weight = this.brand.font.weight) {
-    return `${weight} ${size}px "${this.brand.font.family}", system-ui, sans-serif`;
+    return `${weight} ${size}px "${this.brand.font.family}", "${HEBREW_FALLBACK}", system-ui, sans-serif`;
   }
 
   fill(color: string) {
@@ -349,6 +381,7 @@ export class RenderCtx {
     }
     this.ctx.save();
     this.ctx.font = this.font(size);
+    this.ctx.direction = isRtlText(this.brand.name) ? "rtl" : "ltr";
     const w = this.ctx.measureText(this.brand.name).width;
     this.ctx.restore();
     return { w, h: size };
@@ -368,6 +401,7 @@ export class RenderCtx {
     ctx.fillStyle = color;
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
+    ctx.direction = isRtlText(this.brand.name) ? "rtl" : "ltr";
     ctx.fillText(this.brand.name, x, cy + size * 0.04);
     const w = ctx.measureText(this.brand.name).width;
     ctx.restore();
@@ -379,11 +413,13 @@ export class RenderCtx {
     ctx.save();
     ctx.globalAlpha *= opts.alpha ?? 1;
     ctx.font = opts.family
-      ? `${opts.weight ?? 500} ${size}px ${opts.family}`
+      ? `${opts.weight ?? 500} ${size}px ${opts.family}, "${HEBREW_FALLBACK}"`
       : this.font(size, opts.weight ?? this.brand.font.weight);
     ctx.fillStyle = color;
     ctx.textAlign = opts.align ?? "left";
     ctx.textBaseline = opts.baseline ?? "alphabetic";
+    // Hebrew runs right to left; URLs and handles inside it keep their own order.
+    ctx.direction = isRtlText(str) ? "rtl" : "ltr";
     if (opts.tracking) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${opts.tracking * size}px`;
     ctx.fillText(str, x, y);
     const w = ctx.measureText(str).width;

@@ -3,7 +3,7 @@
  * scene is built to hold up for only one to three seconds and to cut on a beat.
  */
 import { bestOn, mix, rgba } from "../brand/color";
-import { clamp, ease, lerp, seg, type ParamDef, type RenderCtx, type SceneDef } from "../engine/kit";
+import { clamp, ease, isRtlText, lerp, seg, type ParamDef, type RenderCtx, type SceneDef } from "../engine/kit";
 import type { ColorRole, ParamValue } from "../types";
 
 const captionParam: ParamDef = {
@@ -176,18 +176,21 @@ export const wordbuildScene: SceneDef = {
     word = rc.measureWordmark(size);
     const x0 = w / 2 - (mw + gap + word.w) / 2;
     const cy = h / 2;
-    const tx = x0 + mw + gap;
+    // Right-to-left brands: mark on the right, letters built from right to left.
+    const rtl = rc.rtl;
+    const tx = rc.mirror(x0 + mw + gap, word.w);
     const markColor = flipped ? ink : rc.colors.primary;
 
     const settle = flipped ? 1 : 0;
     const markIn = ease.outBack(seg(t, 0, 0.35));
-    rc.drawLogo(x0 + mw / 2, cy, M * markIn, settle ? ink : markColor);
+    rc.drawLogo(rc.mirror(x0 + mw / 2), cy, M * markIn, settle ? ink : markColor);
 
     if (rc.usesLettermark) {
       const k = ease.outCubic(seg(t, 0.3, flipAt - 0.2));
       ctx.save();
       ctx.beginPath();
-      ctx.rect(tx, 0, word.w * k, h);
+      if (rtl) ctx.rect(tx + word.w * (1 - k), 0, word.w * k, h);
+      else ctx.rect(tx, 0, word.w * k, h);
       ctx.clip();
       rc.drawWordmark(tx, cy, size, ink);
       ctx.restore();
@@ -212,16 +215,19 @@ export const wordbuildScene: SceneDef = {
     }
 
     const name = rc.brand.name;
+    const rtlName = isRtlText(name);
     ctx.save();
     ctx.font = rc.font(size);
     ctx.textBaseline = "middle";
+    ctx.direction = rtlName ? "rtl" : "ltr";
     const span = Math.max(0.3, flipAt - 0.6);
     for (let i = 0; i < name.length; i++) {
       const start = 0.3 + (i / name.length) * span;
       const appear = seg(t, start, start + 0.08);
       if (appear <= 0) continue;
       const fill = flipped ? 1 : seg(t, start + 0.18, start + 0.4);
-      const x = tx + ctx.measureText(name.slice(0, i)).width;
+      // Hebrew letters are placed from the right edge of the word.
+      const x = rtlName ? tx + word.w - ctx.measureText(name.slice(0, i + 1)).width : tx + ctx.measureText(name.slice(0, i)).width;
       const ch = name[i];
       ctx.lineWidth = Math.max(1, 1.6 * u);
       ctx.strokeStyle = rgba(ink, 0.7 * (1 - fill));
@@ -533,7 +539,8 @@ export const marqueeScene: SceneDef = {
     const tw = ctx.measureText(text).width;
     ctx.restore();
     const k = ease.inOutCubic(seg(t, 0, duration));
-    const x = lerp(w * 0.15, w * 0.85 - tw, k);
+    // Right-to-left brands run the other way.
+    const x = rc.rtl ? lerp(w * 0.85 - tw, w * 0.15, k) : lerp(w * 0.15, w * 0.85 - tw, k);
     const g = ctx.createLinearGradient(0, 0, w, 0);
     const c = rc.role(p.textColor);
     g.addColorStop(0, c);
@@ -541,6 +548,7 @@ export const marqueeScene: SceneDef = {
     ctx.save();
     ctx.font = rc.font(size, Math.max(700, rc.brand.font.weight));
     ctx.textBaseline = "middle";
+    ctx.direction = isRtlText(text) ? "rtl" : "ltr";
     ctx.fillStyle = g;
     ctx.fillText(text, x, h / 2);
     ctx.restore();

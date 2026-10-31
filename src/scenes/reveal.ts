@@ -60,7 +60,14 @@ export const revealScene: SceneDef = {
       textY = h / 2;
     }
 
-    const rot = (1 - land) * -0.35;
+    // Right-to-left: the mark sits on the right and the name opens leftwards.
+    const rtl = rc.rtl && !stacked;
+    if (rtl) {
+      markX = rc.mirror(markX);
+      textX = rc.mirror(textX, word.w);
+    }
+
+    const rot = (1 - land) * (rtl ? 0.35 : -0.35);
     ctx.save();
     ctx.translate(markX, markY);
     ctx.rotate(rot);
@@ -74,11 +81,14 @@ export const revealScene: SceneDef = {
       ctx.beginPath();
       if (stacked) {
         ctx.rect(0, textY - word.h, w, word.h * 2 * textIn);
+      } else if (rtl) {
+        const rw = (word.w + 8) * textIn + 2;
+        ctx.rect(textX + word.w + 4 - rw, 0, rw, h);
       } else {
         ctx.rect(textX - 4, 0, (word.w + 8) * textIn + 2, h);
       }
       ctx.clip();
-      const slide = (1 - textIn) * (stacked ? 0 : -40 * rc.u);
+      const slide = (1 - textIn) * (stacked ? 0 : (rtl ? 40 : -40) * rc.u);
       const lift = stacked ? (1 - textIn) * 30 * rc.u : 0;
       rc.drawWordmark(textX + slide, textY + lift, size, rc.role(p.nameColor), 1 - settle);
       if (settle > 0) rc.drawWordmark(textX + slide, textY + lift, size, rc.colors.primary, settle);
