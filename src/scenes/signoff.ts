@@ -1,5 +1,5 @@
 import { rgba } from "../brand/color";
-import { ease, seg, type SceneDef } from "../engine/kit";
+import { ease, isRtlText, seg, type SceneDef } from "../engine/kit";
 
 /** Typed sign-off: the website (or tagline) is typed on a dark field with a warm glow. */
 export const signoffScene: SceneDef = {
@@ -45,15 +45,18 @@ export const signoffScene: SceneDef = {
 
     ctx.save();
     ctx.font = rc.font(size, 400);
+    ctx.direction = isRtlText(text) ? "rtl" : "ltr";
     const full = ctx.measureText(text).width;
     ctx.restore();
-    const x = w / 2 - full / 2;
     const markK = p.showMark ? ease.outBack(seg(t, end + 0.1, end + 0.6)) : 0;
     const y = h / 2 + markK * 40 * u;
-    const tw = rc.text(shown, x, y, size, ink, { weight: 400, baseline: "middle" });
+    // Hebrew is typed from the right, with the caret moving left.
+    const rtlText = isRtlText(text);
+    const x = rtlText ? w / 2 + full / 2 : w / 2 - full / 2;
+    const tw = rc.text(shown, x, y, size, ink, { weight: 400, baseline: "middle", align: rtlText ? "right" : "left" });
     if (Math.floor(t * 2.2) % 2 === 0 || n < text.length) {
       ctx.fillStyle = ink;
-      ctx.fillRect(x + tw + 4 * u, y - size * 0.55, Math.max(2, 3 * u), size * 1.1);
+      ctx.fillRect(rtlText ? x - tw - 7 * u : x + tw + 4 * u, y - size * 0.55, Math.max(2, 3 * u), size * 1.1);
     }
     if (markK > 0) rc.drawLogo(w / 2, y - size - 90 * u, rc.logoHeight(110) * markK, rc.colors.primary);
   },

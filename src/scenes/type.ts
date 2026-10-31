@@ -3,6 +3,7 @@ import { ease, seg, type SceneDef } from "../engine/kit";
 import { weightLabel } from "../brand/fonts";
 
 const ALPHABET = ["Aa Bb Cc Dd Ee Ff Gg Hh Ii", "Jj Kk Ll Mm Nn Oo Pp Qq Rr", "Ss Tt Uu Vv Ww Xx Yy Zz"];
+const ALEF_BET = ["א ב ג ד ה ו ז ח ט", "י כ ך ל מ ם נ ן ס", "ע פ ף צ ץ ק ר ש ת"];
 
 /** Type specimen: font name, weights, alphabet and a large glyph pair. */
 export const typeScene: SceneDef = {
@@ -33,17 +34,22 @@ export const typeScene: SceneDef = {
     const drift = ease.inOutCubic(seg(t, 0, duration)) * -20 * u;
     const appear = (start: number) => ease.outCubic(seg(t, start, start + 0.6));
 
+    // Right-to-left brands: text hangs from the right edge and the alphabet is the alef-bet.
+    const rtl = rc.rtl;
+    const start = rtl ? w - pad : pad;
+    const side: CanvasTextAlign = rtl ? "right" : "left";
+
     // Label and family name.
     let a = appear(0.1);
-    rc.text("— " + String(p.label).toUpperCase(), pad, pad + 40 * u + (1 - a) * 20 * u, 28 * u, ink, { weight: 500, alpha: a, tracking: 0.04 });
+    rc.text(rtl ? String(p.label).toUpperCase() + " —" : "— " + String(p.label).toUpperCase(), start, pad + 40 * u + (1 - a) * 20 * u, 28 * u, ink, { weight: 500, alpha: a, tracking: 0.04, align: side });
     a = appear(0.25);
     const famSize = Math.min(150 * u, (w - pad * 2) / Math.max(4, rc.brand.font.family.length * 0.62));
-    rc.text(rc.brand.font.family.toUpperCase(), pad, pad + 60 * u + famSize + (1 - a) * 30 * u, famSize, ink, { weight: 700, alpha: a });
+    rc.text(rc.brand.font.family.toUpperCase(), start, pad + 60 * u + famSize + (1 - a) * 30 * u, famSize, ink, { weight: 700, alpha: a, align: side });
 
     // Weight pills, the brand weight highlighted.
     const weights = Array.from(new Set([400, rc.brand.font.weight, 700])).sort((x, y) => x - y);
     const pillH = 46 * u;
-    const pillsX = rc.portrait ? pad : w - pad;
+    const pillsX = rc.portrait === !rtl ? pad : w - pad;
     const pillsY = rc.portrait ? pad + 130 * u + famSize : pad + 20 * u;
     weights.forEach((wt, i) => {
       const k = ease.outBack(seg(t, 0.45 + i * 0.1, 0.85 + i * 0.1));
@@ -53,7 +59,7 @@ export const typeScene: SceneDef = {
       ctx.font = rc.font(22 * u, wt);
       const tw = ctx.measureText(label).width + 40 * u;
       ctx.restore();
-      const x = rc.portrait ? pillsX + i * 0 : pillsX - tw;
+      const x = pillsX === pad ? pillsX : pillsX - tw;
       const y = pillsY + i * (pillH + 14 * u);
       const active = wt === rc.brand.font.weight;
       ctx.save();
@@ -71,10 +77,11 @@ export const typeScene: SceneDef = {
 
     // Alphabet.
     const alphaSize = Math.min(40 * u, (w * (rc.portrait ? 0.84 : 0.42)) / 15);
-    ALPHABET.forEach((line, i) => {
+    const letters = rtl ? ALEF_BET : ALPHABET;
+    letters.forEach((line, i) => {
       const k = appear(0.6 + i * 0.12);
-      const y = h - pad - (ALPHABET.length - 1 - i) * alphaSize * 1.25 - (rc.portrait ? 0 : 0);
-      rc.text(line, pad + (1 - k) * -30 * u, y - (rc.portrait ? h * 0.42 : 0), alphaSize, ink, { weight: 400, alpha: k });
+      const y = h - pad - (letters.length - 1 - i) * alphaSize * 1.25;
+      rc.text(line, start + (1 - k) * (rtl ? 30 : -30) * u, y - (rc.portrait ? h * 0.42 : 0), alphaSize, ink, { weight: 400, alpha: k, align: side });
     });
 
     // Big glyphs rising from the bottom edge.
@@ -84,7 +91,8 @@ export const typeScene: SceneDef = {
     ctx.beginPath();
     ctx.rect(0, 0, w, h);
     ctx.clip();
-    rc.text(String(p.glyphs), w - pad + drift, h - pad * 0.6 + (1 - k) * big, big, ink, { weight: rc.brand.font.weight, align: "right" });
+    const glyphs = rtl && p.glyphs === "Aa" ? "אב" : String(p.glyphs);
+    rc.text(glyphs, rtl ? pad - drift : w - pad + drift, h - pad * 0.6 + (1 - k) * big, big, ink, { weight: rc.brand.font.weight, align: rtl ? "left" : "right" });
     ctx.restore();
   },
 };

@@ -110,7 +110,7 @@ export function Toggle({ checked, onChange, label }: { checked: boolean; onChang
 }
 
 export function TextInput({ value, onChange, placeholder }: { value: string; onChange: (v: string) => void; placeholder?: string }) {
-  return <input className="text" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
+  return <input className="text" dir="auto" value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)} />;
 }
 
 export function LinkButton({ children, onClick }: { children: ReactNode; onClick: () => void }) {

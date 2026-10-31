@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { Store } from "../state/store";
 import { DEFAULT_BLACK, DEFAULT_WHITE, PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
-import { GOOGLE_FONTS, WEIGHTS, registerUploadedFont } from "../brand/fonts";
+import { GOOGLE_FONTS, HEBREW_FONTS, WEIGHTS, registerUploadedFont } from "../brand/fonts";
+import { brandIsRtl, isRtlText } from "../engine/kit";
 import { prepareSvg } from "../brand/logo";
 import { contrast } from "../brand/color";
 import { resolveColors } from "../engine/kit";
@@ -86,7 +87,9 @@ export function BrandPanel({ store }: { store: Store }) {
     return () => window.removeEventListener("paste", onPaste);
   }, [update]);
 
-  const fontOptions = [...GOOGLE_FONTS, ...(b.font.source === "upload" ? [b.font.family] : [])].map((f) => ({ value: f, label: f }));
+  const fontOptions = [...GOOGLE_FONTS, ...(b.font.source === "upload" ? [b.font.family] : [])].map((f) => ({ value: f, label: HEBREW_FONTS.has(f) ? `${f} · עברית` : f }));
+  const rtl = brandIsRtl(b);
+  const hebrewText = isRtlText(`${b.name} ${b.nameLine2} ${b.tagline}`);
 
   const checks: string[] = [];
   if (contrast(colors.primary, colors.white) < 2) checks.push("Primary is very light, so white text and marks on it may be hard to read.");
@@ -118,8 +121,8 @@ export function BrandPanel({ store }: { store: Store }) {
             <Select value={b.font.weight} options={WEIGHTS} onChange={(weight) => update((d) => void (d.brand.font.weight = weight))} />
             <Stepper value={b.nameSize} min={40} max={260} step={4} unit="px" onChange={(v) => update((d) => void (d.brand.nameSize = v), "nameSize")} />
           </div>
-          <input className="name-input" style={{ fontFamily: `"${b.font.family}"`, fontWeight: b.font.weight }} value={b.name} onChange={(e) => update((d) => void (d.brand.name = e.target.value), "name")} aria-label="Brand name" />
-          <input className="name-line2" value={b.nameLine2} placeholder="Second line (optional)" onChange={(e) => update((d) => void (d.brand.nameLine2 = e.target.value), "name2")} aria-label="Second line" />
+          <input className="name-input" dir="auto" style={{ fontFamily: `"${b.font.family}"`, fontWeight: b.font.weight }} value={b.name} onChange={(e) => update((d) => void (d.brand.name = e.target.value), "name")} aria-label="Brand name" />
+          <input className="name-line2" dir="auto" value={b.nameLine2} placeholder="Second line (optional)" onChange={(e) => update((d) => void (d.brand.nameLine2 = e.target.value), "name2")} aria-label="Second line" />
         </div>
         <DropZone
           accept=".woff,.woff2,.ttf,.otf"
@@ -138,6 +141,26 @@ export function BrandPanel({ store }: { store: Store }) {
         </DropZone>
         {fontError && <p className="error">{fontError}</p>}
         {b.font.source === "upload" && <Help>Uploaded fonts stay on this device. Add the file again after you reload the page.</Help>}
+        {hebrewText && b.font.source === "google" && !HEBREW_FONTS.has(b.font.family) && (
+          <Help>{b.font.family} has no Hebrew letters, so Hebrew is shown in Heebo. Pick a font marked עברית to use one font for everything.</Help>
+        )}
+        <div className="field">
+          <span className="field-label">Reading direction</span>
+          <div className="segmented wide" role="radiogroup" aria-label="Reading direction">
+            {(
+              [
+                ["auto", rtl && b.direction === "auto" ? "Auto · RTL" : "Auto"],
+                ["rtl", "Right to left"],
+                ["ltr", "Left to right"],
+              ] as const
+            ).map(([v, label]) => (
+              <button key={v} type="button" role="radio" aria-checked={b.direction === v} className={b.direction === v ? "active" : ""} onClick={() => update((d) => void (d.brand.direction = v))}>
+                {label}
+              </button>
+            ))}
+          </div>
+          <Help>Auto switches to right to left when the name or tagline is in Hebrew: the mark moves to the right of the name, text builds from the right and slides run the other way. Websites and handles always stay left to right.</Help>
+        </div>
       </Section>
 
       <Section title="Lettermark" aside={<Toggle checked={b.useLettermark} label="Use a lettermark" onChange={(v) => update((d) => void (d.brand.useLettermark = v))} />}>

@@ -1,6 +1,6 @@
 import type { Aspect, Project, SceneInstance } from "../types";
 import { sceneDef } from "../scenes/registry";
-import { RenderCtx, ease, type BrandAssets, type VideoRequest } from "./kit";
+import { RenderCtx, brandIsRtl, ease, type BrandAssets, type VideoRequest } from "./kit";
 
 export const TRANSITION_TIME = 0.5;
 
@@ -109,14 +109,18 @@ export function renderFrame(ctx: CanvasRenderingContext2D, w: number, h: number,
       ctx.globalAlpha = e;
       ctx.drawImage(B, 0, 0);
       break;
-    case "slide":
-      ctx.drawImage(A, -w * e, 0);
-      ctx.drawImage(B, w * (1 - e), 0);
+    case "slide": {
+      // Right-to-left videos move the other way, like turning pages in Hebrew.
+      const dir = brandIsRtl(project.brand) ? -1 : 1;
+      ctx.drawImage(A, -w * e * dir, 0);
+      ctx.drawImage(B, w * (1 - e) * dir, 0);
       break;
+    }
     case "wipe": {
       ctx.drawImage(A, 0, 0);
       ctx.beginPath();
-      ctx.rect(0, 0, w * e, h);
+      if (brandIsRtl(project.brand)) ctx.rect(w * (1 - e), 0, w * e, h);
+      else ctx.rect(0, 0, w * e, h);
       ctx.clip();
       ctx.drawImage(B, 0, 0);
       break;

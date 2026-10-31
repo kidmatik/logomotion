@@ -32,6 +32,7 @@ export const defaultBrand: BrandKit = {
   handle: "matan.design",
   signLine1: "BRAND",
   signLine2: "STUDIO",
+  direction: "auto",
 };
 
 export const DEFAULT_BLACK = "#0E0F14";

@@ -3,6 +3,7 @@ import type { Project } from "../types";
 import type { BrandAssets, MediaEl } from "../engine/kit";
 import { loadSvg, outlineSvg, type LogoAsset } from "../brand/logo";
 import { ensureGoogleFont } from "../brand/fonts";
+import { HEBREW_FALLBACK, brandIsRtl, isRtlText } from "../engine/kit";
 import { blobToElement, getBlob } from "../brand/media";
 
 /**
@@ -46,6 +47,17 @@ export function useAssets(project: Project) {
       live = false;
     };
   }, [brand.font.family, brand.font.source]);
+
+  // Hebrew letters fall back to Heebo when the brand font has none, so load it for right-to-left brands.
+  const needsHebrew = brandIsRtl(brand) || isRtlText(`${brand.name} ${brand.nameLine2} ${brand.tagline} ${brand.website} ${brand.credit} ${brand.handle} ${brand.signLine1} ${brand.signLine2}`);
+  useEffect(() => {
+    if (!needsHebrew) return;
+    let live = true;
+    ensureGoogleFont(HEBREW_FALLBACK).then(() => live && setVersion((v) => v + 1));
+    return () => {
+      live = false;
+    };
+  }, [needsHebrew]);
 
   // Load any media we don't have an element for yet; drop removed ones.
   const mediaKey = media.map((m) => m.id).join(",");

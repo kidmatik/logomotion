@@ -42,7 +42,11 @@ export interface BrandKit {
   handle: string;
   signLine1: string;
   signLine2: string;
+  /** Reading direction of the video. "auto" switches to right-to-left when the brand text is Hebrew or Arabic. */
+  direction: TextDirection;
 }
+
+export type TextDirection = "auto" | "rtl" | "ltr";
 
 export type TransitionKind = "cut" | "fade" | "slide" | "wipe" | "zoom";
 

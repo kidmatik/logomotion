@@ -63,8 +63,8 @@ export const endcardScene: SceneDef = {
     const cy = h / 2 - 30 * u + (1 - k) * 40 * u;
     ctx.save();
     ctx.globalAlpha = k;
-    rc.drawLogo(x0 + mw / 2, cy, M, ink);
-    rc.drawWordmark(x0 + mw + gap, cy, size, ink);
+    rc.drawLogo(rc.mirror(x0 + mw / 2), cy, M, ink);
+    rc.drawWordmark(rc.mirror(x0 + mw + gap, word.w), cy, size, ink);
     ctx.restore();
 
     if (p.showTagline && rc.brand.tagline) {
