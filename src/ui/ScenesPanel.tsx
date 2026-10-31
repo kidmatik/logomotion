@@ -68,7 +68,9 @@ function ParamControl({ def, value, onChange, store, scene }: { def: ParamDef; v
         />
       );
     case "media":
-      return <ScreenControl label={def.label} value={String(value || "")} store={store} sceneUid={scene.uid} paramKey={def.key} onChange={onChange} />;
+      // The second (phone) screen only matters in the Desktop + phone layout.
+      if (def.key === "mobile" && scene.params.frame !== "duo") return null;
+      return <ScreenControl label={def.label} value={String(value || "")} store={store} sceneUid={scene.uid} paramKey={def.key} onChange={onChange} showCapture={def.key !== "mobile"} />;
   }
 }
 

@@ -19,13 +19,13 @@ function prettyUrl(u: string) {
  * The screen a "Your screens" scene shows, picked, uploaded or captured right
  * here in the scene's settings.
  */
-export function ScreenControl({ label, value, store, sceneUid, paramKey, onChange }: { label: string; value: string; store: Store; sceneUid: string; paramKey: string; onChange: (v: string) => void }) {
+export function ScreenControl({ label, value, store, sceneUid, paramKey, onChange, showCapture = true }: { label: string; value: string; store: Store; sceneUid: string; paramKey: string; onChange: (v: string) => void; showCapture?: boolean }) {
   const lib = useLibrary();
   const els = useMediaEls();
   const screens = store.project.media.filter((m) => m.use !== "photo");
   const current = screens.find((m) => m.id === value) ?? (value ? undefined : screens[0]);
   const [url, setUrl] = useState("");
-  const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
+  const [device, setDevice] = useState<"desktop" | "mobile" | "both">("both");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const target = { sceneUid, key: paramKey };
@@ -51,12 +51,28 @@ export function ScreenControl({ label, value, store, sceneUid, paramKey, onChang
     let t = url.trim();
     if (!t) return;
     if (!/^https?:\/\//i.test(t)) t = "https://" + t;
-    setBusy("Capturing… this takes a few seconds");
     setError(null);
+    const grab = async (d: "desktop" | "mobile") => {
+      const blob = await capturePage(t, d);
+      return lib.ingest(blob, { kind: "image", use: "screen", label: `${prettyUrl(t)} (${d})`, origin: "capture", sourceUrl: t, device: d, focusX: 0.5, focusY: 0 });
+    };
     try {
-      const blob = await capturePage(t, device);
-      const item = await lib.ingest(blob, { kind: "image", use: "screen", label: `${prettyUrl(t)} (${device})`, origin: "capture", sourceUrl: t, device, focusX: 0.5, focusY: 0 });
-      lib.commit([item], target);
+      if (device === "both") {
+        setBusy("Capturing desktop and mobile… about 10 seconds");
+        const [desk, mob] = await Promise.all([grab("desktop"), grab("mobile")]);
+        lib.commit([desk, mob], target);
+        // Show both together: the desktop in a browser, the phone version beside it.
+        store.update((d) => {
+          const s = d.scenes.find((x) => x.uid === sceneUid);
+          if (!s) return;
+          s.params[paramKey] = desk.id;
+          s.params.mobile = mob.id;
+          s.params.frame = "duo";
+        });
+      } else {
+        setBusy("Capturing… this takes a few seconds");
+        lib.commit([await grab(device)], target);
+      }
       setUrl("");
     } catch (e) {
       setError((e as Error).message || "Capture failed.");
@@ -96,6 +112,8 @@ export function ScreenControl({ label, value, store, sceneUid, paramKey, onChang
         </div>
       )}
 
+      {showCapture && (
+      <>
       <DropZone accept="image/*,video/mp4,video/webm,video/quicktime" onFiles={onFiles} className="screen-drop">
         <Icon.Upload size={18} />
         <span>
@@ -113,9 +131,9 @@ export function ScreenControl({ label, value, store, sceneUid, paramKey, onChang
         </div>
         <div className="capture-actions">
           <div className="segmented mini" role="radiogroup" aria-label="Device">
-            {(["desktop", "mobile"] as const).map((d) => (
+            {(["both", "desktop", "mobile"] as const).map((d) => (
               <button key={d} type="button" role="radio" aria-checked={device === d} className={device === d ? "active" : ""} onClick={() => setDevice(d)}>
-                {d === "desktop" ? "Desktop" : "Mobile"}
+                {d === "desktop" ? "Desktop" : d === "mobile" ? "Mobile" : "Both"}
               </button>
             ))}
           </div>
@@ -124,6 +142,8 @@ export function ScreenControl({ label, value, store, sceneUid, paramKey, onChang
           </button>
         </div>
       </div>
+      </>
+      )}
       {busy && <p className="hint-busy">{busy}</p>}
       {error && <p className="error">{error}</p>}
     </div>
