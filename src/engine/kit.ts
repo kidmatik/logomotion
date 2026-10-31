@@ -1,5 +1,5 @@
-import type { BrandKit, ColorRole, ParamValue } from "../types";
-import { autoSecondary } from "../brand/color";
+import type { BrandKit, ColorRole, MediaItem, ParamValue } from "../types";
+import { autoSecondary, hexToRgb } from "../brand/color";
 import { rasterLogo, type LogoAsset } from "../brand/logo";
 
 /* ---------- easing and timing ---------- */
@@ -47,6 +47,55 @@ export interface BrandAssets {
   logoOutline: LogoAsset | null;
   lettermark: LogoAsset | null;
   media: Map<string, MediaEl>;
+  /** Metadata (focal point, use, credit) for each media element. */
+  mediaInfo: Map<string, MediaItem>;
+}
+
+/** Brand colour treatments for photos. */
+export type Treatment = "none" | "duotone" | "mono" | "tint";
+
+const treated = new WeakMap<MediaEl, Map<string, HTMLCanvasElement>>();
+
+/**
+ * Return the image with a brand colour treatment applied, cached per colours.
+ * Duotone maps shadows to the brand Black and highlights to the chosen colour.
+ */
+function treatedImage(el: MediaEl, treatment: Treatment, dark: string, light: string): CanvasImageSource {
+  if (treatment === "none" || el instanceof HTMLVideoElement) return el;
+  const key = `${treatment}|${dark}|${light}`;
+  let m = treated.get(el);
+  if (!m) treated.set(el, (m = new Map()));
+  const hit = m.get(key);
+  if (hit) return hit;
+  const sw = el.naturalWidth, sh = el.naturalHeight;
+  const k = Math.min(1, 1600 / Math.max(sw, sh));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(sw * k));
+  c.height = Math.max(1, Math.round(sh * k));
+  const g = c.getContext("2d", { willReadFrequently: true })!;
+  g.drawImage(el, 0, 0, c.width, c.height);
+  if (treatment === "tint") {
+    g.globalCompositeOperation = "color";
+    g.fillStyle = light;
+    g.globalAlpha = 0.55;
+    g.fillRect(0, 0, c.width, c.height);
+  } else {
+    const data = g.getImageData(0, 0, c.width, c.height);
+    const d = data.data;
+    const A = hexToRgb(dark), B = hexToRgb(treatment === "mono" ? "#FFFFFF" : light);
+    const D = treatment === "mono" ? { r: 0, g: 0, b: 0 } : A;
+    for (let i = 0; i < d.length; i += 4) {
+      // Luminance with a gentle S-curve for punchier tones.
+      let l = (0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2]) / 255;
+      l = l * l * (3 - 2 * l);
+      d[i] = D.r + (B.r - D.r) * l;
+      d[i + 1] = D.g + (B.g - D.g) * l;
+      d[i + 2] = D.b + (B.b - D.b) * l;
+    }
+    g.putImageData(data, 0, 0);
+  }
+  m.set(key, c);
+  return c;
 }
 
 /** A scene asking for a video to show a given time; the renderer seeks videos to match. */
@@ -63,7 +112,9 @@ export type ParamDef =
   | { key: string; label: string; type: "number"; default: number; min: number; max: number; step: number; unit?: string; help?: string }
   | { key: string; label: string; type: "select"; default: string; options: { value: string; label: string }[]; help?: string }
   | { key: string; label: string; type: "boolean"; default: boolean; help?: string }
-  | { key: string; label: string; type: "media"; default: string; help?: string };
+  | { key: string; label: string; type: "media"; default: string; help?: string }
+  /** An ordered list of photos, stored as JSON: [{ id, span }]. Empty means "all photos". */
+  | { key: string; label: string; type: "gallery"; default: string; spans?: boolean; help?: string };
 
 export interface SceneDef {
   type: string;
@@ -107,6 +158,51 @@ export class RenderCtx {
       this.videoRequests.push({ el, time: d > 0 ? t % d : 0 });
     }
     return el;
+  }
+
+  /** Media metadata (focal point, credit) by id. */
+  mediaInfo(id: string): MediaItem | undefined {
+    return this.assets.mediaInfo.get(id);
+  }
+
+  /**
+   * Draw media to fill a rectangle (cover), keeping its focal point in frame.
+   * zoom > 1 crops in further; pan (-1..1) drifts within the spare room.
+   */
+  drawCover(
+    id: string,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    opts: { zoom?: number; panX?: number; panY?: number; treatment?: Treatment; tint?: string; time?: number; alpha?: number } = {},
+  ) {
+    const el = this.media(id, opts.time ?? 0);
+    if (!el) return false;
+    const info = this.mediaInfo(id);
+    const sw = el instanceof HTMLVideoElement ? el.videoWidth : el.naturalWidth;
+    const sh = el instanceof HTMLVideoElement ? el.videoHeight : el.naturalHeight;
+    if (!sw || !sh) return false;
+    const zoom = opts.zoom ?? 1;
+    const scale = Math.max(w / sw, h / sh) * zoom;
+    const dw = sw * scale, dh = sh * scale;
+    const spareX = dw - w, spareY = dh - h;
+    const fx = info?.focusX ?? 0.5, fy = info?.focusY ?? 0.5;
+    // Centre on the focal point, then drift, never showing past the image edge.
+    let ox = -(dw * fx - w / 2) + (opts.panX ?? 0) * spareX * 0.25;
+    let oy = -(dh * fy - h / 2) + (opts.panY ?? 0) * spareY * 0.25;
+    ox = Math.min(0, Math.max(-spareX, ox));
+    oy = Math.min(0, Math.max(-spareY, oy));
+    const src = treatedImage(el, opts.treatment ?? "none", this.colors.black, opts.tint ?? this.colors.primary);
+    const { ctx } = this;
+    ctx.save();
+    ctx.globalAlpha *= opts.alpha ?? 1;
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+    ctx.drawImage(src, x + ox, y + oy, dw, dh);
+    ctx.restore();
+    return true;
   }
 
   get portrait() {

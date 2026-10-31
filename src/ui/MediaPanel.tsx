@@ -7,6 +7,7 @@ import { createScene } from "../scenes/registry";
 import { Help, Section, Select } from "./controls";
 import { DropZone } from "./DropZone";
 import { Icon } from "./icons";
+import { PhotosSection } from "./PhotosSection";
 
 function prettyUrl(u: string) {
   try {
@@ -17,12 +18,14 @@ function prettyUrl(u: string) {
   }
 }
 
-export function ScreensPanel({ store, media, onAdded }: { store: Store; media: Map<string, MediaEl>; onAdded: (id: string, el: MediaEl) => void }) {
+export function MediaPanel({ store, media, onAdded }: { store: Store; media: Map<string, MediaEl>; onAdded: (id: string, el: MediaEl) => void }) {
   const { project, update } = store;
   const [url, setUrl] = useState("");
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [section, setSection] = useState<"photos" | "screens">("photos");
+  const screens = project.media.filter((m) => m.use !== "photo");
 
   const add = async (blob: Blob, meta: Omit<MediaItem, "id" | "width" | "height">) => {
     const id = newId();
@@ -33,6 +36,16 @@ export function ScreensPanel({ store, media, onAdded }: { store: Store; media: M
     const item: MediaItem = { id, width, height, ...meta };
     update((d) => {
       d.media.push(item);
+      if (item.use === "photo") {
+        // Switch on a photo scene the first time photos arrive.
+        const photoScenes = d.scenes.filter((s) => s.type === "bento" || s.type === "slideshow");
+        if (!photoScenes.some((s) => s.enabled)) {
+          const s = photoScenes.find((x) => x.type === "bento") ?? photoScenes[0];
+          if (s) s.enabled = true;
+          else d.scenes.splice(Math.min(3, d.scenes.length), 0, createScene("bento", "slide"));
+        }
+        return;
+      }
       // Make sure there's a scene to show it: reuse an unused screens scene, else add one.
       const used = new Set(d.scenes.filter((s) => s.type === "screens").map((s) => s.params.media));
       const idle = d.scenes.find((s) => s.type === "screens" && (!s.params.media || !d.media.some((m) => m.id === s.params.media)) && !used.has(id));
@@ -59,7 +72,7 @@ export function ScreensPanel({ store, media, onAdded }: { store: Store; media: M
         continue;
       }
       try {
-        await add(f, { kind, label: f.name.replace(/\.[^.]+$/, ""), origin: "upload" });
+        await add(f, { kind, use: "screen", label: f.name.replace(/\.[^.]+$/, ""), origin: "upload", focusX: 0.5, focusY: 0 });
       } catch (e) {
         setError((e as Error).message);
       }
@@ -74,7 +87,7 @@ export function ScreensPanel({ store, media, onAdded }: { store: Store; media: M
     setError(null);
     try {
       const blob = await capturePage(target, device);
-      await add(blob, { kind: "image", label: `${prettyUrl(target)} (${device})`, origin: "capture", sourceUrl: target, device });
+      await add(blob, { kind: "image", use: "screen", label: `${prettyUrl(target)} (${device})`, origin: "capture", sourceUrl: target, device, focusX: 0.5, focusY: 0 });
       setUrl("");
     } catch (e) {
       setError((e as Error).message || "Capture failed.");
@@ -89,12 +102,32 @@ export function ScreensPanel({ store, media, onAdded }: { store: Store; media: M
       d.media = d.media.filter((m) => m.id !== id);
       d.scenes.forEach((s) => {
         if (s.type === "screens" && s.params.media === id) s.params.media = "";
+        if ((s.type === "slideshow" || s.type === "bento") && typeof s.params.images === "string" && s.params.images.includes(id)) {
+          try {
+            const list = JSON.parse(s.params.images).filter((g: { id: string }) => g.id !== id);
+            s.params.images = list.length ? JSON.stringify(list) : "";
+          } catch {
+            s.params.images = "";
+          }
+        }
       });
     });
   };
 
   return (
     <div className="panel-scroll">
+      <div className="segmented sub" role="tablist">
+        <button type="button" role="tab" aria-selected={section === "photos"} className={section === "photos" ? "active" : ""} onClick={() => setSection("photos")}>
+          Photos
+        </button>
+        <button type="button" role="tab" aria-selected={section === "screens"} className={section === "screens" ? "active" : ""} onClick={() => setSection("screens")}>
+          Screens and demos
+        </button>
+      </div>
+      {section === "photos" ? (
+        <PhotosSection store={store} add={add} onRemove={remove} />
+      ) : (
+      <>
       <Section title="Capture a link">
         <Help>Paste your website, a product page, a social profile or a demo link. We take a screenshot and add it to the video in a “Your screens” scene.</Help>
         <div className="capture-row">
@@ -130,12 +163,12 @@ export function ScreensPanel({ store, media, onAdded }: { store: Store; media: M
         {error && <p className="error">{error}</p>}
       </Section>
 
-      <Section title={`Your screens (${project.media.length})`}>
-        {project.media.length === 0 ? (
+      <Section title={`Your screens (${screens.length})`}>
+        {screens.length === 0 ? (
           <Help>Nothing here yet. Captured and uploaded screens appear here, and each one gets its own scene.</Help>
         ) : (
           <ul className="media-list">
-            {project.media.map((m) => {
+            {screens.map((m) => {
               const el = media.get(m.id);
               return (
                 <li key={m.id}>
@@ -165,6 +198,8 @@ export function ScreensPanel({ store, media, onAdded }: { store: Store; media: M
           </ul>
         )}
       </Section>
+      </>
+      )}
     </div>
   );
 }

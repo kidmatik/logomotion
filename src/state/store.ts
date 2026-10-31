@@ -29,7 +29,7 @@ export function normalizeProject(raw: unknown): Project {
       colors: { ...base.brand.colors, ...(p.brand?.colors ?? {}) },
       font: { ...base.brand.font, ...(p.brand?.font ?? {}) },
     },
-    media: Array.isArray(p.media) ? p.media : [],
+    media: Array.isArray(p.media) ? p.media.map((m) => ({ ...m, use: m.use ?? "screen", focusX: m.focusX ?? 0.5, focusY: m.focusY ?? 0.5 })) : [],
     scenes,
   };
 }

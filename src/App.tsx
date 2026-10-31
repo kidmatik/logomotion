@@ -6,10 +6,11 @@ import { TopBar } from "./ui/TopBar";
 import { PlayerBar, Preview, Timeline } from "./ui/Preview";
 import { BrandPanel } from "./ui/BrandPanel";
 import { ScenesPanel } from "./ui/ScenesPanel";
-import { ScreensPanel } from "./ui/ScreensPanel";
+import { MediaPanel } from "./ui/MediaPanel";
 import { templateById } from "./templates";
+import { MediaContext } from "./state/mediaContext";
 
-type Tab = "brand" | "scenes" | "screens";
+type Tab = "brand" | "scenes" | "media";
 
 export default function App() {
   const store = useStore();
@@ -40,6 +41,7 @@ export default function App() {
   }, [undo, redo]);
 
   return (
+    <MediaContext.Provider value={assets.media}>
     <div className="app">
       <TopBar store={store} assets={assets} />
       <main className="workspace">
@@ -57,20 +59,21 @@ export default function App() {
               [
                 ["brand", "Brand"],
                 ["scenes", "Scenes"],
-                ["screens", "Screens"],
+                ["media", "Media"],
               ] as [Tab, string][]
             ).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
                 {label}
-                {id === "screens" && project.media.length > 0 && <span className="count">{project.media.length}</span>}
+                {id === "media" && project.media.length > 0 && <span className="count">{project.media.length}</span>}
               </button>
             ))}
           </nav>
           {tab === "brand" && <BrandPanel store={store} />}
           {tab === "scenes" && <ScenesPanel store={store} />}
-          {tab === "screens" && <ScreensPanel store={store} media={assets.media} onAdded={addMediaElement} />}
+          {tab === "media" && <MediaPanel store={store} media={assets.media} onAdded={addMediaElement} />}
         </aside>
       </main>
     </div>
+    </MediaContext.Provider>
   );
 }

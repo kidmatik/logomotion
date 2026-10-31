@@ -70,7 +70,7 @@ export const screensScene: SceneDef = {
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, w, h);
 
-    const firstId = rc.assets.media.keys().next().value as string | undefined;
+    const firstId = [...rc.assets.mediaInfo.values()].find((m) => m.use !== "photo" && rc.assets.media.has(m.id))?.id;
     const id = String(p.media || firstId || "");
     const el = id ? rc.media(id, t) : null;
     const s = el ? sizeOf(el) : { w: 16, h: 10 };

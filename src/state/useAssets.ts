@@ -87,6 +87,6 @@ export function useAssets(project: Project) {
     const el = mediaRef.current.get(m.id);
     if (el) ordered.set(m.id, el);
   }
-  const assets: BrandAssets = { logo, logoOutline, lettermark, media: ordered };
+  const assets: BrandAssets = { logo, logoOutline, lettermark, media: ordered, mediaInfo: new Map(media.map((m) => [m.id, m])) };
   return { assets, version, addMediaElement };
 }

@@ -58,12 +58,31 @@ export interface SceneInstance {
   params: Record<string, ParamValue>;
 }
 
-/** A real brand asset: an uploaded or captured screenshot, or a product demo video. */
+/** Where a stock photo came from, so it can be credited properly. */
+export interface MediaCredit {
+  provider: "unsplash" | "pexels" | "openverse";
+  author: string;
+  authorUrl?: string;
+  /** The photo's page on the provider. */
+  sourceUrl: string;
+  license: string;
+  licenseUrl?: string;
+}
+
+/**
+ * A real brand asset: a screenshot or product demo ("screen"), or a photo for
+ * the photo scenes ("photo"), uploaded, captured or picked from stock.
+ */
 export interface MediaItem {
   id: string;
   kind: "image" | "video";
+  use: "screen" | "photo";
   label: string;
-  origin: "upload" | "capture";
+  origin: "upload" | "capture" | "stock";
+  credit?: MediaCredit;
+  /** Focal point (0..1) kept in frame when the image is cropped to fit any layout. */
+  focusX: number;
+  focusY: number;
   /** The page a capture came from. */
   sourceUrl?: string;
   device?: "desktop" | "mobile";

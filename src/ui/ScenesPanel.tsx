@@ -7,6 +7,7 @@ import { buildTimeline, effectiveDuration } from "../engine/renderer";
 import { clock } from "../state/clock";
 import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls";
 import { Icon } from "./icons";
+import { GalleryControl } from "./GalleryControl";
 
 const TRANSITIONS: { value: TransitionKind; label: string }[] = [
   { value: "cut", label: "Cut" },
@@ -49,15 +50,17 @@ function ParamControl({ def, value, onChange, store }: { def: ParamDef; value: u
           <Toggle checked={Boolean(value)} label={def.label} onChange={onChange} />
         </div>
       );
+    case "gallery":
+      return <GalleryControl label={def.label} value={String(value ?? "")} spans={def.spans} store={store} onChange={onChange} />;
     case "media": {
       const media = store.project.media;
       return (
         <div className="field">
           <span className="field-label">{def.label}</span>
           {media.length ? (
-            <Select value={String(value || "")} options={[{ value: "", label: "First screen in the list" }, ...media.map((m) => ({ value: m.id, label: m.label }))]} onChange={onChange} />
+            <Select value={String(value || "")} options={[{ value: "", label: "First screen in the list" }, ...media.filter((m) => m.use !== "photo").map((m) => ({ value: m.id, label: m.label }))]} onChange={onChange} />
           ) : (
-            <Help>No screens yet. Add screenshots or demo videos in the Screens tab.</Help>
+            <Help>No screens yet. Add screenshots or demo videos in the Media tab.</Help>
           )}
         </div>
       );

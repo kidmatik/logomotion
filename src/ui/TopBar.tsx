@@ -8,6 +8,7 @@ import { TEMPLATES, templateById } from "../templates";
 import { clock } from "../state/clock";
 import { Icon } from "./icons";
 import { canDownload } from "../state/entitlement";
+import { useTheme } from "../state/theme";
 
 const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
 
@@ -18,6 +19,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
   const [error, setError] = useState<string | null>(null);
   const abort = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const doExport = async (scale: number) => {
     setError(null);
@@ -76,6 +78,9 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
       </div>
 
       <div className="tb-right">
+        <button type="button" className="icon-btn theme-btn" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+          {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
+        </button>
         <button type="button" className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
           <Icon.Undo />
         </button>
