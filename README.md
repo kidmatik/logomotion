@@ -29,6 +29,19 @@ npm run build      # type-check and build to dist/
 
 Create a file in `src/scenes/` that exports a `SceneDef` (name, default length, settings and a `render(rc, t, duration, params)` function), then add it to `src/scenes/registry.ts`. Use `rc.role(...)`, `rc.drawLogo(...)` and `rc.drawWordmark(...)` so the scene follows the brand kit.
 
+## Stock photos
+
+The photo picker searches Pexels first, then Unsplash, then Openverse (no key needed).
+Keys live on the server and are used by the proxies in `api/`, so they never reach the browser:
+
+| Source | Vercel environment variable | Get a key |
+| --- | --- | --- |
+| Pexels | `PEXELS_API_KEY` | https://www.pexels.com/api/ |
+| Unsplash | `UNSPLASH_ACCESS_KEY` | https://unsplash.com/oauth/applications |
+
+Add the variable for Production and Preview, then deploy. `/api/pexels?status=1` returns `{"enabled":true}` once a key is picked up.
+For local `npm run dev` (no `api/` functions), use `VITE_PEXELS_API_KEY` / `VITE_UNSPLASH_ACCESS_KEY` in `.env.local` instead.
+
 ## Downloads and payments
 
 `src/state/entitlement.ts` decides who can download. The paywall is off until payments are live (`VITE_PAYWALL=off`; see `.env.example`).
