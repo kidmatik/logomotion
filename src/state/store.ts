@@ -38,6 +38,7 @@ export function normalizeProject(raw: unknown): Project {
     template: p.template ?? base.template,
     aspect: p.aspect ?? base.aspect,
     tempo: { ...base.tempo, ...(p.tempo ?? {}) },
+    music: { ...base.music, ...(p.music ?? {}) },
     brand: {
       ...base.brand,
       ...(p.brand ?? {}),

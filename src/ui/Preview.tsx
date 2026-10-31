@@ -1,10 +1,12 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Project } from "../types";
 import type { BrandAssets } from "../engine/kit";
 import { ASPECTS, buildTimeline, entryAt, renderFrame, syncVideosLive } from "../engine/renderer";
 import { sceneDef } from "../scenes/registry";
 import { clock, useClock } from "../state/clock";
 import { Icon } from "./icons";
+import { music } from "../audio/engine";
+import { buildScore } from "../audio/score";
 
 function fmt(t: number) {
   const m = Math.floor(t / 60);
@@ -94,6 +96,7 @@ export function Preview({ project, assets, assetsVersion }: { project: Project; 
 
 export function PlayerBar({ project }: { project: Project }) {
   const { t, playing } = useClock();
+  const [muted, setMuted] = useState(music.muted);
   const { total } = buildTimeline(project);
   const pct = total ? (t / total) * 100 : 0;
   return (
@@ -115,6 +118,21 @@ export function PlayerBar({ project }: { project: Project }) {
       <span className="time">
         {fmt(t)} / {fmt(total)}
       </span>
+      {project.music.enabled && (
+        <button
+          type="button"
+          className="icon-btn"
+          onClick={() => {
+            music.unlock();
+            music.setMuted(!muted);
+            setMuted(!muted);
+          }}
+          aria-label={muted ? "Unmute music" : "Mute music"}
+          title={muted ? "Unmute music (preview only)" : "Mute music (preview only)"}
+        >
+          {muted ? <Icon.Mute size={16} /> : <Icon.Volume size={16} />}
+        </button>
+      )}
     </div>
   );
 }
@@ -122,11 +140,13 @@ export function PlayerBar({ project }: { project: Project }) {
 /** The enabled scenes as proportional blocks. Click a block to jump to it. */
 export function Timeline({ project }: { project: Project }) {
   const { t } = useClock();
+  const score = useMemo(() => buildScore(project), [project]);
   const { entries, total } = buildTimeline(project);
   if (!entries.length) return <div className="timeline empty">All scenes are switched off. Turn one on in the Scenes tab.</div>;
   const cur = entryAt(entries, t);
   return (
     <div className="timeline" role="list">
+      {/* Beat markers: where the music hits inside each scene, so you can see the sync. */}
       {entries.map((e, i) => (
         <button
           type="button"
@@ -139,6 +159,13 @@ export function Timeline({ project }: { project: Project }) {
         >
           {i === cur && <span className="tl-progress" style={{ width: `${((t - e.start) / e.dur) * 100}%` }} />}
           <span className="tl-label">{sceneDef(e.scene.type)?.name}</span>
+          <span className="tl-beats" aria-hidden>
+            {score
+              .filter((h) => h.t >= e.start && h.t < e.end && (h.vel >= 0.8 || h.voice === "boom"))
+              .map((h, k) => (
+                <i key={k} className={h.voice === "boom" ? "big" : ""} style={{ left: `${((h.t - e.start) / e.dur) * 100}%` }} />
+              ))}
+          </span>
         </button>
       ))}
       <span className="tl-total">{total.toFixed(1)}s</span>

@@ -9,6 +9,7 @@ import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls"
 import { Icon } from "./icons";
 import { GalleryControl } from "./GalleryControl";
 import { VisualSelect } from "./VisualSelect";
+import { ScreenControl } from "./ScreenControl";
 
 const TRANSITIONS: { value: TransitionKind; label: string }[] = [
   { value: "cut", label: "Cut" },
@@ -66,19 +67,8 @@ function ParamControl({ def, value, onChange, store, scene }: { def: ParamDef; v
           onChange={onChange}
         />
       );
-    case "media": {
-      const media = store.project.media;
-      return (
-        <div className="field">
-          <span className="field-label">{def.label}</span>
-          {media.length ? (
-            <Select value={String(value || "")} options={[{ value: "", label: "First screen in the list" }, ...media.filter((m) => m.use !== "photo").map((m) => ({ value: m.id, label: m.label }))]} onChange={onChange} />
-          ) : (
-            <Help>No screens yet. Add screenshots or demo videos in the Media tab.</Help>
-          )}
-        </div>
-      );
-    }
+    case "media":
+      return <ScreenControl label={def.label} value={String(value || "")} store={store} sceneUid={scene.uid} paramKey={def.key} onChange={onChange} />;
   }
 }
 

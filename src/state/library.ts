@@ -68,7 +68,15 @@ export function createLibrary(store: Store, onLoaded: (id: string, el: MediaEl) 
             if (!photoScenes.some((s) => s.enabled)) (photoScenes.find((x) => x.type === "bento") ?? photoScenes[0]).enabled = true;
           }
         }
-        for (const item of items.filter((m) => m.use !== "photo")) {
+        const screens = items.filter((m) => m.use !== "photo");
+        const screenScene = target && screens.length ? d.scenes.find((s) => s.uid === target.sceneUid) : undefined;
+        if (screenScene && target) {
+          // Added from a scene's own settings: show it right there.
+          screenScene.params[target.key] = screens[screens.length - 1].id;
+          screenScene.enabled = true;
+          return;
+        }
+        for (const item of screens) {
           // Make sure there's a scene to show each screen: reuse an unused screens scene, else add one.
           const idle = d.scenes.find((s) => s.type === "screens" && (!s.params.media || !d.media.some((m) => m.id === s.params.media)));
           if (idle) {

@@ -49,6 +49,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
       d.template = t.id;
       d.aspect = t.aspect;
       d.tempo = { ...t.tempo };
+      d.music = { ...d.music, style: t.music };
       d.scenes = t.scenes();
       fillPhotoScenes(d.scenes, d.media);
     });

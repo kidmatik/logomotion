@@ -11,6 +11,25 @@ function Svg({ size = 18, children, ...rest }: P) {
 }
 
 export const Icon = {
+  Music: (p: P) => (
+    <Svg {...p}>
+      <path d="M9 18V6l11-2v12" />
+      <circle cx="6.5" cy="18" r="2.5" />
+      <circle cx="17.5" cy="16" r="2.5" />
+    </Svg>
+  ),
+  Volume: (p: P) => (
+    <Svg {...p}>
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+      <path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" />
+    </Svg>
+  ),
+  Mute: (p: P) => (
+    <Svg {...p}>
+      <path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" />
+      <path d="M16 9.5l5 5M21 9.5l-5 5" />
+    </Svg>
+  ),
   Search: (p: P) => (
     <Svg {...p}>
       <circle cx="11" cy="11" r="6.5" />

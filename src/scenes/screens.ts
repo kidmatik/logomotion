@@ -31,7 +31,7 @@ function placeholder(rc: RenderCtx, x: number, y: number, w: number, h: number) 
   ctx.font = `500 ${Math.max(14, 30 * u)}px ${UI_FONT}`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("Add a screenshot or demo in “Your screens”", x + w / 2, y + h / 2);
+  ctx.fillText("Add a screenshot or demo in this scene’s settings", x + w / 2, y + h / 2);
   ctx.textAlign = "left";
 }
 

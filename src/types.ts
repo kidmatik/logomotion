@@ -90,6 +90,21 @@ export interface MediaItem {
   height: number;
 }
 
+export interface MusicSettings {
+  enabled: boolean;
+  /** Id from src/audio/styles.ts */
+  style: string;
+  intensity: "calm" | "medium" | "high";
+  /** 0..1 */
+  volume: number;
+  /** Accent every cut. */
+  hits: boolean;
+  /** Drum fills that resolve on each cut. */
+  fills: boolean;
+  /** Riser, a beat of silence and a big hit into the last scene. */
+  ending: boolean;
+}
+
 export type Aspect = "16:9" | "9:16" | "1:1" | "4:5";
 
 export interface Project {
@@ -99,6 +114,8 @@ export interface Project {
   aspect: Aspect;
   /** Optional musical timing: when snap is on, scene lengths round to whole beats. */
   tempo: { bpm: number; snap: boolean };
+  /** Generated percussion that follows the timeline. */
+  music: MusicSettings;
   brand: BrandKit;
   /** Metadata only; the files themselves live in IndexedDB on this device. */
   media: MediaItem[];

@@ -7,6 +7,8 @@ export interface Template {
   description: string;
   aspect: Aspect;
   tempo: { bpm: number; snap: boolean };
+  /** Default music style for this template. */
+  music: string;
   scenes: () => SceneInstance[];
 }
 
@@ -27,7 +29,8 @@ export const TEMPLATES: Template[] = [
     name: "Brand in Motion",
     description: "A calm 30-second walkthrough of the identity: construction, logo, icon, devices, type and colour.",
     aspect: "16:9",
-    tempo: { bpm: 100, snap: false },
+    tempo: { bpm: 116, snap: true },
+    music: "stomp",
     scenes: build([
       ["grid", "cut"],
       ["reveal", "cut"],
@@ -50,6 +53,7 @@ export const TEMPLATES: Template[] = [
     description: "A fast 16-second vertical reel for LinkedIn and Instagram, cut on the beat.",
     aspect: "4:5",
     tempo: { bpm: 120, snap: true },
+    music: "pulse",
     scenes: build([
       ["blueprint", "cut", true, 3],
       ["wordbuild", "cut", true, 2.5],

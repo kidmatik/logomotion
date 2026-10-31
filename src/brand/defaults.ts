@@ -1,4 +1,4 @@
-import type { BrandKit, Project } from "../types";
+import type { BrandKit, MusicSettings, Project } from "../types";
 import { TEMPLATES } from "../templates";
 
 /** A neutral placeholder mark shown until the user uploads their own logo. */
@@ -44,8 +44,13 @@ export function defaultProject(): Project {
     template: t.id,
     aspect: t.aspect,
     tempo: { ...t.tempo },
+    music: defaultMusic(t.music),
     brand: structuredClone(defaultBrand),
     media: [],
     scenes: t.scenes(),
   };
+}
+
+export function defaultMusic(style = "stomp"): MusicSettings {
+  return { enabled: true, style, intensity: "high", volume: 0.8, hits: true, fills: true, ending: true };
 }
