@@ -1,0 +1,33 @@
+{
+  "name": "logomotion",
+  "version": "0.1.0",
+  "description": "Brand-in-motion logo video studio that runs in the browser",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kidmatik/logomotion.git"
+  },
+  "bugs": {
+    "url": "https://github.com/kidmatik/logomotion/issues"
+  },
+  "homepage": "https://github.com/kidmatik/logomotion#readme",
+  "dependencies": {
+    "mp4-muxer": "^5.2.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.5"
+  },
+  "private": true,
+  "type": "module"
+}
