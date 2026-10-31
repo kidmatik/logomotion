@@ -5,6 +5,7 @@ import { ASPECTS, effectiveDuration } from "../engine/renderer";
 import { sceneDef } from "../scenes/registry";
 import { previewTime } from "../scenes/photos";
 import { useBrandAssets } from "../state/mediaContext";
+import { onMockupAsset } from "../mockup/library";
 
 const THUMB_W = 132;
 
@@ -13,11 +14,13 @@ function SceneThumb({ project, scene, paramKey, option, mode }: { project: Proje
   const ref = useRef<HTMLCanvasElement>(null);
   const ctxAssets = useBrandAssets();
   const [hover, setHover] = useState(false);
+  const [loaded, setLoaded] = useState(0);
+  useEffect(() => onMockupAsset(() => setLoaded((n) => n + 1)), []);
   const { w: AW, h: AH } = ASPECTS[project.aspect];
   const h = Math.round((THUMB_W * AH) / AW);
   const params = { ...scene.params, [paramKey]: option };
   const duration = effectiveDuration(project, scene);
-  const deps = JSON.stringify(params) + project.aspect + JSON.stringify(project.brand.colors) + project.brand.logoSvg.length + duration + (ctxAssets?.version ?? 0);
+  const deps = JSON.stringify(params) + project.aspect + JSON.stringify(project.brand.colors) + project.brand.logoSvg.length + duration + (ctxAssets?.version ?? 0) + "|" + loaded;
 
   useEffect(() => {
     const canvas = ref.current;
