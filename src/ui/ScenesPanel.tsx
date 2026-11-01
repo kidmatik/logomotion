@@ -2,7 +2,7 @@ import { useState } from "react";
 import { fillPhotoScenes, type Store } from "../state/store";
 import type { ColorRole, SceneInstance, TransitionKind } from "../types";
 import { SCENES, createScene, sceneDef } from "../scenes/registry";
-import { resolveColors, type ParamDef } from "../engine/kit";
+import { brandIsRtl, resolveColors, type ParamDef } from "../engine/kit";
 import { buildTimeline, effectiveDuration } from "../engine/renderer";
 import { clock } from "../state/clock";
 import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls";
@@ -154,6 +154,22 @@ function SceneRow({
           <div className="field">
             <span className="field-label">Transition in</span>
             <Select value={scene.transition} options={TRANSITIONS} onChange={(v) => set((s) => void (s.transition = v))} />
+          </div>
+          <div className="field">
+            <span className="field-label">Direction</span>
+            <div className="segmented wide" role="radiogroup" aria-label="Direction">
+              {(
+                [
+                  [undefined, brandIsRtl(store.project.brand) ? "Brand · RTL" : "Brand · LTR"],
+                  ["rtl", "Right to left"],
+                  ["ltr", "Left to right"],
+                ] as const
+              ).map(([v, label]) => (
+                <button key={label} type="button" role="radio" aria-checked={scene.direction === v} className={scene.direction === v ? "active" : ""} onClick={() => set((s) => void (v ? (s.direction = v) : delete s.direction))}>
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           <BackdropControl scene={scene} store={store} />
           <SceneColorsControl scene={scene} store={store} />

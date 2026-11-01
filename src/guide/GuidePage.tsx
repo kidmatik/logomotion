@@ -127,7 +127,8 @@ export function GuidePage(props: GuidePageProps) {
     if (st?.heading || st?.text) vars["--gp-head"] = (st.heading || st.text)!;
     if (st?.accent) vars["--gp-accent"] = st.accent;
     const on = Object.keys(vars).length > 0;
-    return { className: base + (on && key !== "page" ? " themed" : ""), style: vars as CSSProperties };
+    const forced = guide.dirs?.[key];
+    return { className: base + (on && key !== "page" ? " themed" : "") + (forced ? " forced-dir" : ""), style: vars as CSSProperties, ...(forced && key !== "page" ? { dir: forced } : {}) };
   };
   const pick = (id: GuideSectionId | "hero") => (onPick ? { onClick: () => onPick(id), "data-picked": picked === id ? "" : undefined, "data-pickable": "" } : {});
 
@@ -146,7 +147,7 @@ export function GuidePage(props: GuidePageProps) {
   return (
     <div
       className={themed("page", "gp" + (onPick ? " editing" : "")).className}
-      dir={dir}
+      dir={guide.dirs?.page ?? dir}
       lang={lang}
       style={{ ["--sp-primary" as string]: c.primary, ["--sp-secondary" as string]: c.secondary, ["--sp-dark" as string]: c.black, ["--sp-light" as string]: c.white, ...themed("page", "").style }}
     >

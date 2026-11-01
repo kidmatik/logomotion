@@ -59,8 +59,8 @@ function scratchCanvas(key: "a" | "b", w: number, h: number) {
 
 function drawScene(ctx: CanvasRenderingContext2D, w: number, h: number, project: Project, assets: BrandAssets, entry: TimelineEntry, local: number, requests: VideoRequest[]) {
   const def = sceneDef(entry.scene.type)!;
-  const brand = sceneBrand(project.brand, entry.scene.colors);
-  const rc = new RenderCtx(ctx, w, h, brand, assets, entry.scene.colors?.logo || undefined);
+  const brand = sceneBrand(project.brand, entry.scene.colors, entry.scene.direction);
+  const rc = new RenderCtx(ctx, w, h, brand, assets, entry.scene.colors?.logo || undefined, entry.scene.direction);
   ctx.save();
   // A background override is painted first, and the scene's own first full-frame fill is skipped.
   const custom = paintBackdrop(ctx, w, h, brand, entry.scene.backdrop, local);

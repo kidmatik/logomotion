@@ -311,11 +311,13 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
       )}
 
       {picked ? (
-        <Section title={picked === "hero" ? "Cover colours" : "Section colours"}>
+        <Section title={picked === "hero" ? "Cover colours & direction" : "Section colours & direction"}>
+          <PartDir store={store} part={picked} />
           <PartColors store={store} part={picked} />
         </Section>
       ) : (
-        <Section title="Page colours">
+        <Section title="Page colours & direction">
+          <PartDir store={store} part="page" />
           <PartColors store={store} part="page" />
         </Section>
       )}
@@ -562,4 +564,42 @@ function mixHex(a: string, b: string, t: number) {
   const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
   const [x, y] = [p(a), p(b)];
   return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("").toUpperCase();
+}
+
+/** Reading direction for the whole page or one part of it. */
+function PartDir({ store, part }: { store: StoreT; part: GuideStyleKey }) {
+  const { project, update } = store;
+  const { dir } = useLang();
+  const dirs = project.guide?.dirs ?? {};
+  const cur = dirs[part];
+  const inherited = part === "page" ? dir : dirs.page ?? dir;
+  const set = (v: "rtl" | "ltr" | undefined) =>
+    update((d) => {
+      const g = d.guide ?? emptyGuide();
+      const all = { ...(g.dirs ?? {}) };
+      if (v) all[part] = v;
+      else delete all[part];
+      d.guide = { ...g, dirs: all };
+    });
+  return (
+    <div className="field">
+      <span className="field-label">Direction</span>
+      <div className="segmented wide" role="radiogroup" aria-label="Direction">
+        {(
+          [
+            [undefined, `${part === "page" ? "Language" : "Page"} · ${inherited === "rtl" ? "RTL" : "LTR"}`],
+            ["rtl", "Right to left"],
+            ["ltr", "Left to right"],
+          ] as const
+        ).map(([v, label]) => (
+          <button key={label} type="button" role="radio" aria-checked={cur === v} className={cur === v ? "active" : ""} onClick={() => set(v)}>
+            {label}
+          </button>
+        ))}
+      </div>
+      {part === "page" && (
+        <LinkButton onClick={() => update((d) => void (d.guide = { ...(d.guide ?? emptyGuide()), dirs: cur ? { page: cur } : {} }))}>Use the page direction on every section</LinkButton>
+      )}
+    </div>
+  );
 }

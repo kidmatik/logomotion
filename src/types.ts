@@ -90,6 +90,8 @@ export interface SceneInstance {
   backdrop?: Backdrop;
   /** Optional colour overrides for this scene only. Unset keys follow the brand. */
   colors?: SceneColors;
+  /** Reading direction for this scene only. Unset follows the brand. */
+  direction?: "rtl" | "ltr";
 }
 
 /**
@@ -209,6 +211,8 @@ export interface BrandGuide {
   auto: string[];
   /** Custom colours for the whole page ("page"), the top bar ("top"), the hero, or one section. */
   styles?: Partial<Record<GuideStyleKey, GuideColors>>;
+  /** Reading direction for the whole page ("page") or one part of it. Unset follows the page language. */
+  dirs?: Partial<Record<GuideStyleKey, "rtl" | "ltr">>;
 }
 
 export type GuideStyleKey = GuideSectionId | "page" | "top" | "hero";
