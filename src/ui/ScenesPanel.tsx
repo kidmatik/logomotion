@@ -7,6 +7,7 @@ import { buildTimeline, effectiveDuration } from "../engine/renderer";
 import { clock } from "../state/clock";
 import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls";
 import { Icon } from "./icons";
+import { BackdropControl } from "./BackdropControl";
 import { GalleryControl } from "./GalleryControl";
 import { VisualSelect } from "./VisualSelect";
 import { ScreenControl } from "./ScreenControl";
@@ -154,6 +155,7 @@ function SceneRow({
             <span className="field-label">Transition in</span>
             <Select value={scene.transition} options={TRANSITIONS} onChange={(v) => set((s) => void (s.transition = v))} />
           </div>
+          <BackdropControl scene={scene} store={store} />
           {def.params.map((p, i) => (
             <div key={p.key} className="param">
               {p.group && p.group !== def.params[i - 1]?.group && <h4 className="param-group">{p.group}</h4>}

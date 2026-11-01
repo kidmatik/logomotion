@@ -42,11 +42,37 @@ export interface BrandKit {
   handle: string;
   signLine1: string;
   signLine2: string;
+  /** Brand gradients (from the website or made by hand). Scenes can use them as backgrounds. */
+  gradients: BrandGradient[];
   /** Reading direction of the video. "auto" switches to right-to-left when the brand text is Hebrew or Arabic. */
   direction: TextDirection;
 }
 
 export type TextDirection = "auto" | "rtl" | "ltr";
+
+export interface BrandGradient {
+  id: string;
+  name: string;
+  /** "mesh" is soft colour blobs drifting over the first colour. */
+  type: "linear" | "radial" | "mesh";
+  /** Degrees, CSS convention (0 = upwards, 90 = to the right). */
+  angle: number;
+  /** Two to four hex colours. */
+  stops: string[];
+}
+
+/**
+ * A scene's own background, replacing the one the scene draws. "scene" keeps
+ * the scene's design. Colours come from the brand (a colour role or a brand
+ * gradient), so the brand stays consistent.
+ */
+export interface Backdrop {
+  mode: "scene" | "solid" | "gradient";
+  color: ColorRole;
+  /** Id of a gradient from brandGradients() (auto ones start with "auto-"). */
+  gradient: string;
+  motion: "none" | "drift" | "rotate" | "pulse";
+}
 
 export type TransitionKind = "cut" | "fade" | "slide" | "wipe" | "zoom";
 
@@ -60,6 +86,8 @@ export interface SceneInstance {
   duration: number;
   transition: TransitionKind;
   params: Record<string, ParamValue>;
+  /** Optional background override for this scene. */
+  backdrop?: Backdrop;
 }
 
 /** Where a stock photo came from, so it can be credited properly. */

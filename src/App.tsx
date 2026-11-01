@@ -12,11 +12,20 @@ import { music } from "./audio/engine";
 import { templateById } from "./templates";
 import { AssetsContext, MediaContext } from "./state/mediaContext";
 import { LibraryContext, createLibrary } from "./state/library";
+import type { Project } from "./types";
+import { useAccount } from "./cloud/account";
+import { useProjectThumbnail } from "./state/thumbnail";
+import { Onboarding, isPristine, onboarded, type OnboardingResult } from "./ui/Onboarding";
+import { capturePage } from "./brand/media";
+import type { Library } from "./state/library";
+import { ShareDialog } from "./ui/ShareDialog";
 
 type Tab = "brand" | "scenes" | "media" | "music";
 
-export default function App() {
-  const store = useStore();
+/** The editor for one project. `persist` saves it (to this browser for guests, to the account once signed in). */
+export default function App({ initial, persist }: { initial: Project; persist: (p: Project) => void }) {
+  const store = useStore(initial, persist);
+  const account = useAccount();
   const { project, undo, redo } = store;
   const { assets, version, addMediaElement } = useAssets(project);
   const [tab, setTab] = useState<Tab>("brand");
@@ -24,6 +33,26 @@ export default function App() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const library = useMemo(() => createLibrary(store, addMediaElement), [store.update, addMediaElement]);
   const assetsValue = useMemo(() => ({ assets, version }), [assets, version]);
+  const [onboarding, setOnboarding] = useState(() => !onboarded() && isPristine(initial));
+  const [notice, setNotice] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
+
+  const finishOnboarding = (r: OnboardingResult) => {
+    store.replace(r.project);
+    setOnboarding(false);
+    clock.seek(0);
+    clock.setPlaying(true);
+    if (r.goal === "page") setSharing(true);
+    if (r.capture || r.files.length) {
+      setNotice(r.capture ? "Capturing your website and adding your files…" : "Adding your files…");
+      addMaterials(library, r.capture, r.files)
+        .then((failed) => setNotice(failed ? "Some files couldn't be added. You can add them again in the Media tab." : null))
+        .catch(() => setNotice(null));
+    }
+  };
+
+  // A small preview image for the project list.
+  useProjectThumbnail(project, assets, version, account.user ? account.setThumbnail : null);
 
   // Keep the soundtrack in step with every edit.
   useEffect(() => music.setProject(project), [project]);
@@ -60,12 +89,16 @@ export default function App() {
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
+  if (onboarding) {
+    return <Onboarding initial={project} onFinish={finishOnboarding} onSkip={() => setOnboarding(false)} />;
+  }
+
   return (
     <MediaContext.Provider value={assets.media}>
     <AssetsContext.Provider value={assetsValue}>
     <LibraryContext.Provider value={library}>
     <div className="app">
-      <TopBar store={store} assets={assets} />
+      <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} onShare={() => setSharing(true)} />
       <main className="workspace">
         <section className="stage-col">
           <div className="stage-card">
@@ -97,9 +130,42 @@ export default function App() {
           {tab === "music" && <MusicPanel store={store} />}
         </aside>
       </main>
+      {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
+      {notice && (
+        <div className="toast" role="status" onClick={() => setNotice(null)}>
+          {notice}
+        </div>
+      )}
     </div>
     </LibraryContext.Provider>
     </AssetsContext.Provider>
     </MediaContext.Provider>
   );
+}
+
+/** Screenshots of the site plus the files picked during onboarding, added in one go. Returns how many failed. */
+async function addMaterials(library: Library, site: string | null, files: File[]) {
+  let failed = 0;
+  const items = [];
+  if (site) {
+    for (const device of ["desktop", "mobile"] as const) {
+      try {
+        const blob = await capturePage(site, device);
+        const host = new URL(site).hostname.replace(/^www\./, "");
+        items.push(await library.ingest(blob, { kind: "image", use: "screen", label: `${host} (${device})`, origin: "capture", sourceUrl: site, device, focusX: 0.5, focusY: 0 }));
+      } catch {
+        failed++;
+      }
+    }
+  }
+  for (const f of files) {
+    try {
+      const video = f.type.startsWith("video/");
+      items.push(await library.ingest(f, { kind: video ? "video" : "image", use: video ? "screen" : "photo", label: f.name, origin: "upload", focusX: 0.5, focusY: 0.5 }));
+    } catch {
+      failed++;
+    }
+  }
+  if (items.length) library.commit(items);
+  return failed;
 }

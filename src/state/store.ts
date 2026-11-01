@@ -4,8 +4,6 @@ import { defaultProject } from "../brand/defaults";
 import { createScene, sceneDef } from "../scenes/registry";
 import { PHOTO_SCENES } from "../scenes/photos";
 
-const KEY = "logomotion.project.v1";
-
 /** Fill in anything missing from an older or hand-edited project file. */
 /**
  * Photo scenes that have never had photos chosen ("" rather than "[]") pick up
@@ -50,14 +48,37 @@ export function normalizeProject(raw: unknown): Project {
   };
 }
 
-function load(): Project {
+/** The project a guest (or a build without accounts) keeps in this browser. */
+export const LOCAL_KEY = "logomotion.project.v1";
+
+export function loadLocalProject(): Project {
   try {
-    const s = localStorage.getItem(KEY);
+    const s = localStorage.getItem(LOCAL_KEY);
     if (s) return normalizeProject(JSON.parse(s));
   } catch {
     /* fall through to defaults */
   }
   return defaultProject();
+}
+
+let localTimer: ReturnType<typeof setTimeout> | undefined;
+let localPending: Project | null = null;
+/** Debounced save to this browser. */
+export function saveLocalProject(p: Project) {
+  localPending = p;
+  clearTimeout(localTimer);
+  localTimer = setTimeout(flushLocalProject, 250);
+}
+/** Write any pending browser save now (e.g. right before leaving for Google sign-in). */
+export function flushLocalProject() {
+  clearTimeout(localTimer);
+  if (!localPending) return;
+  try {
+    localStorage.setItem(LOCAL_KEY, JSON.stringify(localPending));
+  } catch {
+    /* storage full: the project file export still works */
+  }
+  localPending = null;
 }
 
 export type Updater = (draft: Project) => void;
@@ -73,23 +94,23 @@ export interface Store {
   canRedo: boolean;
 }
 
-export function useStore(): Store {
-  const [project, setProject] = useState<Project>(load);
+/** `persist` is called after every change; it decides where (browser or account) and debounces. */
+export function useStore(initial: Project, persist: (p: Project) => void): Store {
+  const [project, setProject] = useState<Project>(initial);
   const past = useRef<Project[]>([]);
   const future = useRef<Project[]>([]);
   const lastMerge = useRef<{ key: string; at: number } | null>(null);
   const [, force] = useState(0);
 
-  // Autosave (debounced) so nothing is lost on reload.
+  // Autosave so nothing is lost on reload. Skip the first render: nothing has changed yet.
+  const first = useRef(true);
   useEffect(() => {
-    const id = setTimeout(() => {
-      try {
-        localStorage.setItem(KEY, JSON.stringify(project));
-      } catch {
-        /* storage full: the project file export still works */
-      }
-    }, 250);
-    return () => clearTimeout(id);
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    persist(project);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [project]);
 
   const update = useCallback((fn: Updater, mergeKey?: string) => {

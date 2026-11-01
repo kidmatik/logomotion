@@ -9,6 +9,8 @@ import { resolveColors } from "../engine/kit";
 import { ColorSwatch, Help, LinkButton, Section, Select, Slider, Stepper, TextInput, Toggle } from "./controls";
 import { DropZone } from "./DropZone";
 import { Icon } from "./icons";
+import { makeLogos, type MadeLogo } from "../brand/logoMaker";
+import { GradientsEditor } from "./BackdropControl";
 
 function svgPreviewUrl(svg: string) {
   const p = prepareSvg(svg);
@@ -87,7 +89,7 @@ export function BrandPanel({ store }: { store: Store }) {
     return () => window.removeEventListener("paste", onPaste);
   }, [update]);
 
-  const fontOptions = [...GOOGLE_FONTS, ...(b.font.source === "upload" ? [b.font.family] : [])].map((f) => ({ value: f, label: HEBREW_FONTS.has(f) ? `${f} · עברית` : f }));
+  const fontOptions = [...new Set([...GOOGLE_FONTS, b.font.family])].map((f) => ({ value: f, label: HEBREW_FONTS.has(f) ? `${f} · עברית` : f }));
   const rtl = brandIsRtl(b);
   const hebrewText = isRtlText(`${b.name} ${b.nameLine2} ${b.tagline}`);
 
@@ -108,6 +110,7 @@ export function BrandPanel({ store }: { store: Store }) {
         />
         <Slider label="Logo size" value={Math.round(b.logoScale * 100)} min={40} max={180} step={1} unit="%" onChange={(v) => update((d) => void (d.brand.logoScale = v / 100), "logoScale")} />
         <Help>Makes the logo bigger or smaller in every scene at once. 100% is the balanced size.</Help>
+        <LogoMaker store={store} />
       </Section>
 
       <Section title="Name">
@@ -116,7 +119,7 @@ export function BrandPanel({ store }: { store: Store }) {
             <Select
               value={b.font.family}
               options={fontOptions}
-              onChange={(family) => update((d) => void (d.brand.font = { ...d.brand.font, family, source: GOOGLE_FONTS.includes(family) ? "google" : "upload" }))}
+              onChange={(family) => update((d) => void (d.brand.font = { ...d.brand.font, family, source: d.brand.font.source === "upload" && family === d.brand.font.family ? "upload" : "google" }))}
             />
             <Select value={b.font.weight} options={WEIGHTS} onChange={(weight) => update((d) => void (d.brand.font.weight = weight))} />
             <Stepper value={b.nameSize} min={40} max={260} step={4} unit="px" onChange={(v) => update((d) => void (d.brand.nameSize = v), "nameSize")} />
@@ -232,6 +235,11 @@ export function BrandPanel({ store }: { store: Store }) {
         )}
       </Section>
 
+      <Section title="Gradients">
+        <GradientsEditor store={store} />
+        <Help>Use them behind any scene: Scenes → open a scene → Background → Gradient.</Help>
+      </Section>
+
       <Section title="Details">
         <div className="field">
           <span className="field-label">Website</span>
@@ -254,6 +262,73 @@ export function BrandPanel({ store }: { store: Store }) {
           <strong>Private by design.</strong> Your logo, fonts, screenshots and text stay in your browser. Only a URL you ask us to capture is sent to the screenshot service.
         </p>
       </div>
+    </div>
+  );
+}
+
+/** "No logo yet?": monograms and wordmarks made from the brand name, one click to use. */
+function LogoMaker({ store }: { store: Store }) {
+  const { project, update } = store;
+  const b = project.brand;
+  const [open, setOpen] = useState(false);
+  const [ideas, setIdeas] = useState<MadeLogo[] | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    let live = true;
+    setIdeas(null);
+    makeLogos(b.name, b.font.family, b.font.weight, b.font.source)
+      .then((l) => live && setIdeas(l))
+      .catch(() => live && setIdeas([]));
+    return () => {
+      live = false;
+    };
+  }, [open, b.name, b.font.family, b.font.weight, b.font.source]);
+  if (!open) {
+    return (
+      <LinkButton onClick={() => setOpen(true)}>
+        <Icon.Sparkle size={14} /> No logo yet? Make one from your name
+      </LinkButton>
+    );
+  }
+  return (
+    <div className="logo-maker">
+      <div className="logo-maker-head">
+        <strong>Made from “{b.name}” in {b.font.family}</strong>
+        <button type="button" className="icon-btn" aria-label="Close" onClick={() => setOpen(false)}>
+          <Icon.Close size={14} />
+        </button>
+      </div>
+      {!ideas ? (
+        <p className="hint-busy">Drawing ideas…</p>
+      ) : (
+        <div className="logo-maker-grid">
+          {ideas.map((l) => {
+            const active = l.kind === "mark" ? b.logoSvg === l.svg : b.useLettermark && b.lettermarkSvg === l.svg;
+            return (
+              <button
+                key={l.id}
+                type="button"
+                className={"logo-maker-tile" + (l.kind === "wordmark" ? " wide" : "") + (active ? " active" : "")}
+                title={l.kind === "mark" ? `${l.label}: use as the logo` : `${l.label}: use instead of the typed name`}
+                onClick={() =>
+                  update((d) => {
+                    if (l.kind === "mark") {
+                      d.brand.logoSvg = l.svg;
+                      d.brand.logoColorMode = "primary";
+                    } else {
+                      d.brand.lettermarkSvg = l.svg;
+                      d.brand.useLettermark = true;
+                    }
+                  })
+                }
+              >
+                <img src={svgPreviewUrl(l.svg)} alt={l.label} />
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <Help>Marks replace the logo. Wordmarks replace the typed name (turn off Lettermark below to go back). Change the font or name above and the ideas follow.</Help>
     </div>
   );
 }

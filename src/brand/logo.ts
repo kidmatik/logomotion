@@ -97,6 +97,12 @@ export function outlineSvg(svgText: string, strokeFraction = 0.012): string | nu
   const vb = (svg.getAttribute("viewBox") ?? "0 0 100 100").split(/[\s,]+/).map(Number);
   const sw = Math.max(vb[2], vb[3]) * strokeFraction;
   svg.querySelectorAll("style").forEach((n) => n.remove());
+  // Knocked-out letters (a mask) become plain outlines next to their shape.
+  svg.querySelectorAll("mask").forEach((mask) => {
+    mask.querySelectorAll("path").forEach((p) => svg.appendChild(p));
+    mask.remove();
+  });
+  svg.querySelectorAll("[mask]").forEach((el) => el.removeAttribute("mask"));
   svg.querySelectorAll(SHAPES).forEach((el) => {
     el.setAttribute("style", `fill:none;stroke:#000;stroke-width:${sw};stroke-linejoin:round`);
     el.removeAttribute("fill");
