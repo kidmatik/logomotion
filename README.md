@@ -63,7 +63,7 @@ It runs on Supabase (Auth with the Google provider, Postgres, Storage). Setup:
 3. In Supabase -> Authentication -> URL Configuration set the Site URL to the production URL and add `https://*.vercel.app/**` and `http://localhost:5173/**` as redirect URLs.
 4. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel (Production and Preview) and redeploy.
 
-Without those two variables the app runs as before, with no sign-in and everything kept in the browser.
+Without those two variables the app runs as before, with no sign-in and everything kept in the browser. Vite reads them at build time, so redeploy after adding or changing them.
 
 ## Downloads and payments
 
