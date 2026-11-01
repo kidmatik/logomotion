@@ -45,12 +45,82 @@ export interface MockupDef {
   /** Neon and similar looks darken the photo for a night feel. */
   night?: boolean;
   foilTone?: "gold" | "silver" | "copper";
+  /** "people": someone wearing or holding it; "product": the object on its own. */
+  kind?: "people" | "product";
 }
 
 const px = (w: number, h: number, pts: [number, number][]): Quad => pts.map(([x, y]) => [x / w, y / h]) as Quad;
 
 /** The built-in pack: blank product photos generated for LogoMotion (Figma AI). */
 export const MOCKUPS: MockupDef[] = [
+  {
+    id: "hand-card",
+    name: "Card in hand",
+    src: "/mockups/hand-card.jpg",
+    quad: px(1536, 1024, [[483, 320], [1048, 315], [1050, 665], [484, 667]]),
+    aspect: 1.62,
+    material: "print",
+    light: [-0.9, -0.4],
+    fit: 0.5,
+    ink: "primary",
+    kind: "people",
+  },
+  {
+    id: "model-tee",
+    name: "T-shirt on a model",
+    src: "/mockups/model-tee.jpg",
+    quad: px(1536, 1024, [[615, 425], [915, 425], [915, 645], [615, 645]]),
+    aspect: 0,
+    material: "print",
+    light: [0, -1],
+    focus: [0.5, 0.42],
+    fit: 0.62,
+    ink: "auto",
+    kind: "people",
+  },
+  {
+    id: "hand-cup",
+    name: "Coffee to go",
+    src: "/mockups/hand-cup.jpg",
+    quad: px(1024, 1024, [[345, 330], [688, 330], [655, 720], [372, 720]]),
+    aspect: 1.25,
+    bend: 1.4,
+    arc: 0.03,
+    material: "print",
+    light: [-0.6, -0.8],
+    focus: [0.5, 0.48],
+    fit: 0.55,
+    ink: "primary",
+    kind: "people",
+  },
+  {
+    id: "street-tote",
+    name: "Tote on the street",
+    src: "/mockups/street-tote.jpg",
+    quad: px(1024, 1024, [[262, 462], [562, 472], [522, 818], [238, 768]]),
+    aspect: 0,
+    material: "print",
+    light: [0.8, -0.5],
+    focus: [0.48, 0.5],
+    fit: 0.55,
+    ink: "auto",
+    kind: "people",
+  },
+  {
+    id: "model-cap",
+    name: "Cap on a model",
+    src: "/mockups/model-cap.jpg",
+    quad: px(1024, 1024, [[360, 135], [660, 135], [668, 295], [352, 295]]),
+    aspect: 1.9,
+    bend: 0.85,
+    arc: -0.02,
+    material: "embroidery",
+    light: [0, -1],
+    focus: [0.5, 0.3],
+    fit: 0.55,
+    ink: "auto",
+    kind: "people",
+  },
   {
     id: "card",
     name: "Business card",
@@ -196,9 +266,12 @@ export async function preloadMockupPhotos(srcs: string[]) {
 
 /** Load every pack photo the project's mockup scenes use. */
 export function preloadProjectMockups(project: Project) {
-  const srcs = project.scenes
-    .filter((s) => s.enabled && s.type === "mockup" && s.params.base !== "custom")
+  const on = project.scenes.filter((s) => s.enabled);
+  const srcs = on
+    .filter((s) => s.type === "mockup" && s.params.base !== "custom")
     .map((s) => (mockupById(String(s.params.base)) ?? MOCKUPS[0])?.src)
     .filter((x): x is string => !!x);
+  // The montage cuts across the whole pack.
+  if (on.some((s) => s.type === "montage")) srcs.push(...MOCKUPS.map((m) => m.src));
   return preloadMockupPhotos([...new Set(srcs)]);
 }

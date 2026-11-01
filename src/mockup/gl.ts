@@ -47,6 +47,14 @@ export interface CompositeInput {
   dim: number;
   /** Average brightness of the bare surface (0..1). */
   surfaceLum: number;
+  /** 0..1 colour grade of the whole photo towards the brand (shadows -> dark, highlights -> accent). */
+  grade?: number;
+  gradeDark?: [number, number, number];
+  gradeLight?: [number, number, number];
+  /** Motion blur along this output-pixel vector (camera whips between cuts). */
+  blur?: [number, number];
+  /** 0..1 white flash over the frame (cut accents). */
+  flash?: number;
 }
 
 const VERT = `#version 300 es
@@ -60,7 +68,8 @@ uniform vec2 uRes, uPhotoSize, uArtTexel;
 uniform mat3 uView, uSurf;
 uniform int uMat, uReveal;
 uniform vec3 uInk, uMetalA, uMetalB;
-uniform float uUseArt, uRef, uBend, uArc, uTime, uK, uStrength, uSweep, uSweepPos, uDim, uArtAspect;
+uniform float uUseArt, uRef, uBend, uArc, uTime, uK, uStrength, uSweep, uSweepPos, uDim, uArtAspect, uGrade, uFlash;
+uniform vec3 uGradeDark, uGradeLight;
 uniform vec2 uLight;
 out vec4 o;
 
@@ -76,7 +85,9 @@ vec3 H(vec2 st){ return texture(uHeight, st).rgb; }
 
 void main(){
   vec2 pix = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
-  vec2 puv = (uView * vec3(pix, 1.)).xy / uPhotoSize;
+  // The camera can be a full perspective transform (3D swings), so divide by w.
+  vec3 pv = uView * vec3(pix, 1.);
+  vec2 puv = pv.xy / pv.z / uPhotoSize;
   vec3 P = texture(uPhoto, clamp(puv, vec2(0.), vec2(1.))).rgb;
   vec3 hq = uSurf * vec3(pix, 1.);
   vec2 st = hq.xy / hq.z;
@@ -186,6 +197,14 @@ void main(){
   col += vec3(1., 0.97, 0.92) * s * 0.08;
   float v = length(uv - 0.5);
   col *= 1. - 0.16 * v * v;
+  if (uGrade > 0.001) {
+    // Brand colour grade: shadows towards the brand's dark, highlights towards its accent.
+    float l = lum(col);
+    vec3 toned = mix(uGradeDark, uGradeLight, smoothstep(0.0, 1.0, l)) * (0.35 + 0.9 * l);
+    vec3 split = col + (mix(uGradeDark, uGradeLight, l) - 0.5) * 0.35;
+    col = mix(col, mix(split, toned, 0.45), uGrade);
+  }
+  col = mix(col, vec3(1.), uFlash);
   o = vec4(col, 1.);
 }`;
 
@@ -226,7 +245,7 @@ function init(): GL | null {
     const p = gl.getAttribLocation(prog, "p");
     gl.enableVertexAttribArray(p);
     gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
-    const names = ["uPhoto", "uArt", "uHeight", "uRes", "uPhotoSize", "uArtTexel", "uView", "uSurf", "uMat", "uReveal", "uInk", "uMetalA", "uMetalB", "uUseArt", "uRef", "uBend", "uArc", "uTime", "uK", "uStrength", "uSweep", "uSweepPos", "uDim", "uArtAspect", "uLight"];
+    const names = ["uPhoto", "uArt", "uHeight", "uRes", "uPhotoSize", "uArtTexel", "uView", "uSurf", "uMat", "uReveal", "uInk", "uMetalA", "uMetalB", "uUseArt", "uRef", "uBend", "uArc", "uTime", "uK", "uStrength", "uSweep", "uSweepPos", "uDim", "uArtAspect", "uLight", "uGrade", "uGradeDark", "uGradeLight", "uFlash"];
     const loc = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(prog, n)]));
     gl.uniform1i(loc.uPhoto, 0);
     gl.uniform1i(loc.uArt, 1);
@@ -318,9 +337,38 @@ export function composite(ctx: CanvasRenderingContext2D, w: number, h: number, i
   gl.uniform1f(loc.uDim, inp.dim);
   const ln = Math.hypot(inp.light[0], inp.light[1]) || 1;
   gl.uniform2f(loc.uLight, inp.light[0] / ln, inp.light[1] / ln);
+  gl.uniform1f(loc.uGrade, inp.grade ?? 0);
+  gl.uniform3fv(loc.uGradeDark, inp.gradeDark ?? [0, 0, 0]);
+  gl.uniform3fv(loc.uGradeLight, inp.gradeLight ?? [1, 1, 1]);
+  gl.uniform1f(loc.uFlash, inp.flash ?? 0);
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  ctx.drawImage(canvas, 0, 0, w, h);
+  drawBlurred(ctx, canvas, w, h, inp.blur);
   return true;
+}
+
+/**
+ * Draw a frame into ctx, smeared along a vector for motion blur: N equal-weight
+ * copies spread along the vector (running average via 1/(i+1) alpha).
+ */
+export function drawBlurred(ctx: CanvasRenderingContext2D, src: CanvasImageSource, w: number, h: number, blur?: [number, number]) {
+  const len = blur ? Math.hypot(blur[0], blur[1]) : 0;
+  if (!blur || len < 1.5) {
+    ctx.drawImage(src, 0, 0, w, h);
+    return;
+  }
+  const n = Math.min(14, Math.max(3, Math.round(len / 6)));
+  // Scale up slightly so the smeared copies still cover the frame edges.
+  const pad = len / 2;
+  const sx = (w + pad * 2) / w, sy = (h + pad * 2) / h;
+  const k = Math.max(sx, sy);
+  ctx.save();
+  for (let i = 0; i < n; i++) {
+    const f = i / (n - 1) - 0.5;
+    ctx.globalAlpha = 1 / (i + 1);
+    const dw = w * k, dh = h * k;
+    ctx.drawImage(src, (w - dw) / 2 + blur[0] * f, (h - dh) / 2 + blur[1] * f, dw, dh);
+  }
+  ctx.restore();
 }
 
 /* ---------- surface statistics ---------- */
