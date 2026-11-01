@@ -3,8 +3,8 @@
  * project. The same component draws the preview in the editor and the public
  * page at /s/<id>, so what you edit is what your team sees.
  */
-import { useMemo, useState, type ReactNode } from "react";
-import type { Aspect, BrandGuide, ColorRole, GuideSectionId, Project } from "../types";
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import type { Aspect, BrandGuide, ColorRole, GuideSectionId, GuideStyleKey, Project } from "../types";
 import type { BrandAssets } from "../engine/kit";
 import { brandIsRtl, resolveColors } from "../engine/kit";
 import { buildTimeline } from "../engine/renderer";
@@ -118,6 +118,17 @@ export function GuidePage(props: GuidePageProps) {
     e.preventDefault();
     document.getElementById(`gp-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
+  // Custom colours: CSS variables on the page or on one part of it.
+  const themed = (key: GuideStyleKey, base: string) => {
+    const st = guide.styles?.[key];
+    const vars: Record<string, string> = {};
+    if (st?.bg) vars["--gp-bg"] = st.bg;
+    if (st?.text) vars["--gp-ink"] = st.text;
+    if (st?.heading || st?.text) vars["--gp-head"] = (st.heading || st.text)!;
+    if (st?.accent) vars["--gp-accent"] = st.accent;
+    const on = Object.keys(vars).length > 0;
+    return { className: base + (on && key !== "page" ? " themed" : ""), style: vars as CSSProperties };
+  };
   const pick = (id: GuideSectionId | "hero") => (onPick ? { onClick: () => onPick(id), "data-picked": picked === id ? "" : undefined, "data-pickable": "" } : {});
 
   const body: Record<GuideSectionId, () => ReactNode> = {
@@ -134,12 +145,12 @@ export function GuidePage(props: GuidePageProps) {
 
   return (
     <div
-      className={"gp" + (onPick ? " editing" : "")}
+      className={themed("page", "gp" + (onPick ? " editing" : "")).className}
       dir={dir}
       lang={lang}
-      style={{ ["--sp-primary" as string]: c.primary, ["--sp-secondary" as string]: c.secondary, ["--sp-dark" as string]: c.black, ["--sp-light" as string]: c.white }}
+      style={{ ["--sp-primary" as string]: c.primary, ["--sp-secondary" as string]: c.secondary, ["--sp-dark" as string]: c.black, ["--sp-light" as string]: c.white, ...themed("page", "").style }}
     >
-      <header className="gp-top">
+      <header {...themed("top", "gp-top")}>
         <span className="sp-brand gp-txt">
           <img src={tinted(b.logoSvg, b.logoColorMode === "original" ? null : c.black)} alt="" />
           <strong style={font}>{b.name}</strong>
@@ -158,7 +169,7 @@ export function GuidePage(props: GuidePageProps) {
         )}
       </header>
 
-      <section className="gp-hero" {...pick("hero")}>
+      <section {...themed("hero", "gp-hero")} {...pick("hero")}>
         <div className="gp-hero-text">
           <p className="sp-eyebrow">{t("guidelines")}</p>
           <h1 className="gp-txt" style={{ ...font, fontSize: `clamp(34px, ${Math.min(7, 56 / Math.max(8, name.length))}cqi, 88px)` }}>
@@ -187,7 +198,7 @@ export function GuidePage(props: GuidePageProps) {
 
       <main className="gp-main">
         {sections.map((id, i) => (
-          <section key={id} id={`gp-${id}`} className={"gp-section gp-sec-" + id} {...pick(id)}>
+          <section key={id} id={`gp-${id}`} {...themed(id, "gp-section gp-sec-" + id)} {...pick(id)}>
             <header className="gp-head">
               <span className="sp-num">{String(i + 1).padStart(2, "0")}</span>
               <h2>{sectionLabel(id, lang)}</h2>

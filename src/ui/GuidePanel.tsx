@@ -4,7 +4,7 @@
  * (logo, colours, fonts) are edited in the Brand tab and show up here live.
  */
 import { useMemo, useState } from "react";
-import type { BrandGuide, ColorRole, GuideSectionId } from "../types";
+import type { BrandGuide, ColorRole, GuideColors, GuideSectionId, GuideStyleKey } from "../types";
 import type { Store } from "../state/store";
 import { GUIDE_SECTIONS, editGuide, emptyGuide, fillGuide, guideIdeas, logoRules } from "../guide/model";
 import { readBrandPdf } from "../guide/pdf";
@@ -17,7 +17,7 @@ import { resolveColors } from "../engine/kit";
 import { DropZone } from "./DropZone";
 import { useLang } from "../i18n";
 import { LogoSlot } from "./BrandPanel";
-import { ColorSwatch, Select } from "./controls";
+import { ColorSwatch, LinkButton, Select } from "./controls";
 import { HEBREW_FONTS, WEIGHTS } from "../brand/fonts";
 import { PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
 import { isMultiColor } from "../brand/logoImport";
@@ -305,8 +305,18 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
           <p className="guide-hint">
             {picked === "motion" && "This section shows your film and its logo animation. Edit the film in the Video view: its scenes, timing and music all show up here."}
             {picked === "examples" && "Your brand on an app icon, phone, website, social profile, merchandise and more, drawn live from your logo and colours. Change the brand and every example follows."}
-            {picked === "formats" && "Square, portrait, story, video and profile picture, each ready to download as an image from the page."}
+            {picked === "formats" && "Square, story, video and profile picture, each ready to download as an image from the page."}
           </p>
+        </Section>
+      )}
+
+      {picked ? (
+        <Section title={picked === "hero" ? "Cover colours" : "Section colours"}>
+          <PartColors store={store} part={picked} />
+        </Section>
+      ) : (
+        <Section title="Page colours">
+          <PartColors store={store} part="page" />
         </Section>
       )}
 
@@ -452,4 +462,104 @@ function BrandBasics({ store, parts = ["logo", "name", "colors", "font"] }: { st
       )}
     </div>
   );
+}
+
+const PART_FIELDS: { key: keyof GuideColors; label: string }[] = [
+  { key: "bg", label: "Background" },
+  { key: "text", label: "Text" },
+  { key: "heading", label: "Headings" },
+  { key: "accent", label: "Accent" },
+];
+
+/**
+ * Colours for the whole guidelines page or one part of it: background, text,
+ * headings and accent, with brand presets and a way back to the defaults.
+ */
+function PartColors({ store, part }: { store: StoreT; part: GuideStyleKey }) {
+  const { project, update } = store;
+  const c = resolveColors(project.brand);
+  const styles = project.guide?.styles ?? {};
+  const page = styles.page ?? {};
+  const own = styles[part] ?? {};
+  // What this part shows when nothing is set: the page's colours, or the defaults.
+  const inherited: Required<GuideColors> = {
+    bg: (part !== "page" && page.bg) || "#FFFFFF",
+    text: (part !== "page" && page.text) || "#15161A",
+    heading: (part !== "page" && (page.heading || page.text)) || c.black,
+    accent: (part !== "page" && page.accent) || c.primary,
+  };
+  const write = (next: GuideColors | undefined) =>
+    update((d) => {
+      const g = d.guide ?? emptyGuide();
+      const all = { ...(g.styles ?? {}) };
+      const clean = next ? (Object.fromEntries(Object.entries(next).filter(([, v]) => !!v)) as GuideColors) : undefined;
+      if (clean && Object.keys(clean).length) all[part] = clean;
+      else delete all[part];
+      d.guide = { ...g, styles: all };
+    }, `gstyle:${part}`);
+  const set = (patch: GuideColors) => write({ ...own, ...patch });
+  const presets: { name: string; colors: GuideColors }[] = [
+    { name: "Light", colors: { bg: c.white, text: c.black, heading: c.black, accent: c.primary } },
+    { name: "Dark", colors: { bg: c.black, text: c.white, heading: c.white, accent: c.secondary } },
+    { name: "Brand", colors: { bg: c.primary, text: c.white, heading: c.white, accent: c.secondary } },
+    { name: "Soft", colors: { bg: mixHex(c.primary, "#FFFFFF", 0.9), text: c.black, heading: c.black, accent: c.primary } },
+  ];
+  const changed = Object.values(own).some(Boolean);
+  return (
+    <div className="part-colors">
+      <div className="part-presets">
+        {presets.map((p) => (
+          <button key={p.name} type="button" className="part-preset" onClick={() => write(p.colors)} title={p.name}>
+            <span style={{ background: p.colors.bg, color: p.colors.heading }}>
+              Aa<i style={{ background: p.colors.accent }} />
+            </span>
+            {p.name}
+          </button>
+        ))}
+      </div>
+      <div className="swatches">
+        {PART_FIELDS.map(({ key, label }) => (
+          <ColorSwatch
+            key={key}
+            label={label}
+            value={own[key] || inherited[key]}
+            onChange={(v) => set({ [key]: v })}
+            badge={
+              own[key] ? (
+                <button type="button" className="swatch-reset" title="Back to default" aria-label={`Reset ${label.toLowerCase()}`} onClick={() => set({ [key]: undefined })}>
+                  ↺
+                </button>
+              ) : null
+            }
+          />
+        ))}
+      </div>
+      <p className="guide-hint">{part === "page" ? "Colours for the whole page. Each section can also have its own: pick it to change them." : "This part only. Everything else keeps the page colours."}</p>
+      {changed && (
+        <div className="scene-colors-actions">
+          {part !== "page" && (
+            <LinkButton
+              onClick={() =>
+                update((d) => {
+                  const g = d.guide ?? emptyGuide();
+                  const all: Partial<Record<GuideStyleKey, GuideColors>> = { ...(g.styles ?? {}) };
+                  for (const sct of g.sections) all[sct.id] = { ...own };
+                  d.guide = { ...g, styles: all };
+                })
+              }
+            >
+              Use on every section
+            </LinkButton>
+          )}
+          <LinkButton onClick={() => write(undefined)}>Reset colours</LinkButton>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function mixHex(a: string, b: string, t: number) {
+  const p = (h: string) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const [x, y] = [p(a), p(b)];
+  return "#" + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, "0")).join("").toUpperCase();
 }

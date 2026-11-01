@@ -88,6 +88,21 @@ export interface SceneInstance {
   params: Record<string, ParamValue>;
   /** Optional background override for this scene. */
   backdrop?: Backdrop;
+  /** Optional colour overrides for this scene only. Unset keys follow the brand. */
+  colors?: SceneColors;
+}
+
+/**
+ * Per-scene colours. Each brand role can be swapped for any colour in this
+ * scene, and the logo can keep its own colours or take a single colour.
+ */
+export interface SceneColors {
+  primary?: string;
+  secondary?: string;
+  black?: string;
+  white?: string;
+  /** "original" keeps the artwork's colours; a hex paints the logo that colour. */
+  logo?: string;
 }
 
 /** Where a stock photo came from, so it can be credited properly. */
@@ -192,4 +207,16 @@ export interface BrandGuide {
   source: { pdf?: string; site?: string; siteText?: string };
   /** Fields written automatically rather than by a person, so the editor can mark them. */
   auto: string[];
+  /** Custom colours for the whole page ("page"), the top bar ("top"), the hero, or one section. */
+  styles?: Partial<Record<GuideStyleKey, GuideColors>>;
+}
+
+export type GuideStyleKey = GuideSectionId | "page" | "top" | "hero";
+
+/** Colours for part of the guidelines page. Unset keys follow the page. */
+export interface GuideColors {
+  bg?: string;
+  text?: string;
+  heading?: string;
+  accent?: string;
 }

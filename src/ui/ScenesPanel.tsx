@@ -7,7 +7,7 @@ import { buildTimeline, effectiveDuration } from "../engine/renderer";
 import { clock } from "../state/clock";
 import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls";
 import { Icon } from "./icons";
-import { BackdropControl } from "./BackdropControl";
+import { BackdropControl, SceneColorsControl } from "./BackdropControl";
 import { GalleryControl } from "./GalleryControl";
 import { VisualSelect } from "./VisualSelect";
 import { ScreenControl } from "./ScreenControl";
@@ -156,6 +156,7 @@ function SceneRow({
             <Select value={scene.transition} options={TRANSITIONS} onChange={(v) => set((s) => void (s.transition = v))} />
           </div>
           <BackdropControl scene={scene} store={store} />
+          <SceneColorsControl scene={scene} store={store} />
           {def.params.map((p, i) => (
             <div key={p.key} className="param">
               {p.group && p.group !== def.params[i - 1]?.group && <h4 className="param-group">{p.group}</h4>}
@@ -242,7 +243,7 @@ export function ScenesPanel({ store }: { store: Store }) {
           <Slider label="Tempo" value={project.tempo.bpm} min={60} max={180} step={1} unit="BPM" onChange={(v) => update((d) => void (d.tempo.bpm = v), "bpm")} />
         )}
       </div>
-      <Help>Switch scenes on or off, drag them into any order, and open one to change its length, transition and settings. Colours can only be picked from your brand palette.</Help>
+      <Help>Switch scenes on or off, drag them into any order, and open one to change its length, transition and settings. Each scene can also have its own colours, logo colour included.</Help>
       <ul className="scene-list">
         {project.scenes.map((s, i) => (
           <SceneRow
