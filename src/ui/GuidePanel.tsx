@@ -15,6 +15,7 @@ import { GOOGLE_FONTS } from "../brand/fonts";
 import { normalizeHex } from "../brand/color";
 import { resolveColors } from "../engine/kit";
 import { DropZone } from "./DropZone";
+import { useLang } from "../i18n";
 import { Section, Slider, Toggle } from "./controls";
 import { Icon } from "./icons";
 
@@ -23,8 +24,9 @@ type Pick = GuideSectionId | "hero";
 export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { store: Store; picked: Pick | null; onPick: (p: Pick | null) => void; onShare: () => void; onBrandTab: () => void }) {
   const { project, update } = store;
   const stored = project.guide ?? emptyGuide();
-  const guide = useMemo(() => fillGuide(project, stored), [project, stored]);
-  const ideas = useMemo(() => guideIdeas(project.brand, stored.source.siteText), [project.brand, stored.source.siteText]);
+  const { lang } = useLang();
+  const guide = useMemo(() => fillGuide(project, stored, lang), [project, stored, lang]);
+  const ideas = useMemo(() => guideIdeas(project.brand, stored.source.siteText, lang), [project.brand, stored.source.siteText, lang]);
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
   const [site, setSite] = useState(project.brand.website);

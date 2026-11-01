@@ -143,8 +143,9 @@ export function guideLang(b: BrandKit): "en" | "he" {
 }
 
 /** Ideas the editor offers for each field, written for this brand. */
-export function guideIdeas(b: BrandKit, siteDescription = "") {
-  const lang = guideLang(b);
+/** Ideas are written in `lang` (the page's language), or the brand's own language when not given. */
+export function guideIdeas(b: BrandKit, siteDescription = "", pageLang?: string) {
+  const lang: "en" | "he" = pageLang === "he" || pageLang === "en" ? pageLang : guideLang(b);
   const mood = brandMood(b);
   const name = b.name || (lang === "he" ? "המותג" : "the brand");
   const tag = b.tagline.trim();
@@ -199,9 +200,10 @@ export function logoRules(svg: string) {
  * Complete a guide: every empty field gets the first idea, and is marked as
  * written automatically. Fields a person (or the PDF) filled stay as they are.
  */
-export function fillGuide(project: Project, guide: BrandGuide = emptyGuide()): BrandGuide {
+export function fillGuide(project: Project, guide: BrandGuide = emptyGuide(), lang?: string): BrandGuide {
   const b = project.brand;
-  const ideas = guideIdeas(b, guide.source.siteText);
+  // Suggested text is written in the page's language, so a Hebrew page reads Hebrew throughout.
+  const ideas = guideIdeas(b, guide.source.siteText, lang);
   const g: BrandGuide = structuredClone(guide);
   const auto = new Set(g.auto);
   const fill = <K extends string>(key: K, empty: boolean, set: () => void) => {

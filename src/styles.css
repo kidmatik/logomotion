@@ -1332,3 +1332,8 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   .gp-colors { grid-template-columns: 1fr 1fr; }
   .gp-colors .sp-color.big { grid-column: span 2; }
 }
+/* Brand text (often in another language than the page) keeps its own word order but lines up with the page. */
+.gp-txt, .gp-txt > li, .gp-txt > div > strong { unicode-bidi: plaintext; }
+.gp[dir="rtl"] .gp-txt, .gp[dir="rtl"] .gp-txt > * { text-align: right; }
+.gp[dir="ltr"] .gp-txt, .gp[dir="ltr"] .gp-txt > * { text-align: left; }
+.gp .sp-scenes button { text-align: start; }

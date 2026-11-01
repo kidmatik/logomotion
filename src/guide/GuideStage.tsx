@@ -14,7 +14,7 @@ type Pick = GuideSectionId | "hero";
 export function GuideStage({ project, assets, assetsVersion, picked, onPick }: { project: Project; assets: BrandAssets; assetsVersion: number; picked: Pick | null; onPick: (p: Pick) => void }) {
   const { t, lang, setLang, dir } = useLang(GUIDE_T);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
-  const guide = useMemo(() => fillGuide(project, project.guide ?? emptyGuide()), [project]);
+  const guide = useMemo(() => fillGuide(project, project.guide ?? emptyGuide(), lang), [project, lang]);
   const scroller = useRef<HTMLDivElement>(null);
   const host = (project.brand.website || project.brand.name || "yourbrand").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
 

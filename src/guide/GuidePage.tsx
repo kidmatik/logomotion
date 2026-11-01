@@ -136,7 +136,7 @@ export function GuidePage(props: GuidePageProps) {
       style={{ ["--sp-primary" as string]: c.primary, ["--sp-secondary" as string]: c.secondary, ["--sp-dark" as string]: c.black, ["--sp-light" as string]: c.white }}
     >
       <header className="gp-top">
-        <span className="sp-brand" dir={brandDir}>
+        <span className="sp-brand gp-txt">
           <img src={tinted(b.logoSvg, b.logoColorMode === "original" ? null : c.black)} alt="" />
           <strong style={font}>{b.name}</strong>
         </span>
@@ -157,11 +157,11 @@ export function GuidePage(props: GuidePageProps) {
       <section className="gp-hero" {...pick("hero")}>
         <div className="gp-hero-text">
           <p className="sp-eyebrow">{t("guidelines")}</p>
-          <h1 dir={brandDir} style={{ ...font, fontSize: `clamp(34px, ${Math.min(7, 56 / Math.max(8, name.length))}cqi, 88px)` }}>
+          <h1 className="gp-txt" style={{ ...font, fontSize: `clamp(34px, ${Math.min(7, 56 / Math.max(8, name.length))}cqi, 88px)` }}>
             {name}
           </h1>
           {guide.intro && (
-            <p className="gp-intro" dir="auto">
+            <p className="gp-intro gp-txt">
               {guide.intro}
             </p>
           )}
@@ -209,13 +209,13 @@ function Auto({ show, k, guide, t }: { show?: boolean; k: string; guide: BrandGu
   return show && guide.auto.includes(k) ? <span className="gp-auto" title={t("autoNote")}><Icon.Sparkle size={11} /> {t("autoNote")}</span> : null;
 }
 
-function About({ guide, project, t, font, brandDir, showAuto }: GuidePageProps & Extra) {
+function About({ guide, project, t, font, showAuto }: GuidePageProps & Extra) {
   const c = resolveColors(project.brand);
   const tiles = [c.primary, c.black, c.secondary, c.white];
   return (
     <>
       <div className="gp-lead">
-        <p className="gp-big" dir="auto">
+        <p className="gp-big gp-txt">
           {guide.about}
         </p>
         <Auto show={showAuto} k="about" guide={guide} t={t} />
@@ -223,7 +223,7 @@ function About({ guide, project, t, font, brandDir, showAuto }: GuidePageProps &
       {guide.values.length > 0 && (
         <>
           <h3 className="gp-h3">{t("values")}</h3>
-          <div className="gp-values" dir={brandDir}>
+          <div className="gp-values gp-txt">
             {guide.values.map((v, i) => {
               const bg = tiles[i % tiles.length];
               return (
@@ -486,10 +486,10 @@ function Type({ project, guide, t, brandDir }: GuidePageProps & Extra) {
         <div className="sp-type-info">
           <h3 style={{ fontWeight: b.font.weight }}>{b.font.family}</h3>
           <p className="sp-code" dir="ltr">{weightLabel(b.font.weight)} · {b.font.weight}</p>
-          <p className="sp-type-sample" dir={brandDir} style={{ fontWeight: b.font.weight }}>
+          <p className="sp-type-sample gp-txt" style={{ fontWeight: b.font.weight }}>
             {rtl ? "אבגדהוזחטיכלמנסעפצקרשת" : "ABCDEFGHIJKLMNOPQRSTUVWXYZ"}
           </p>
-          <p className="sp-type-sample light" dir={brandDir}>
+          <p className="sp-type-sample light gp-txt">
             {rtl ? "אבגדהוזחטיכלמנסעפצקרשת 0123456789" : "abcdefghijklmnopqrstuvwxyz 0123456789"}
           </p>
           {b.font.source === "google" && fontLink(b.font.family)}
@@ -509,7 +509,7 @@ function Type({ project, guide, t, brandDir }: GuidePageProps & Extra) {
             <span className="sp-code" dir="ltr">
               {t(s.k)} · {s.size}px · {s.w}
             </span>
-            <p dir={brandDir} style={{ ...s.style, fontSize: `min(${s.size}px, ${s.size / 6}cqi)`, fontWeight: s.w, lineHeight: s.lh }}>
+            <p className="gp-txt" style={{ ...s.style, fontSize: `min(${s.size}px, ${s.size / 6}cqi)`, fontWeight: s.w, lineHeight: s.lh }}>
               {s.text}
             </p>
           </div>
@@ -519,13 +519,13 @@ function Type({ project, guide, t, brandDir }: GuidePageProps & Extra) {
   );
 }
 
-function Voice({ guide, project, t, font, brandDir, showAuto }: GuidePageProps & Extra) {
+function Voice({ guide, project, t, font, showAuto }: GuidePageProps & Extra) {
   const c = resolveColors(project.brand);
   return (
     <>
       <p className="gp-p">{t("voiceLead", { name: project.brand.name })}</p>
       {guide.voice.traits.length > 0 && (
-        <div className="gp-traits" dir={brandDir}>
+        <div className="gp-traits gp-txt">
           <span className="sp-code">{t("weAre")}</span>
           {guide.voice.traits.map((x, i) => (
             <strong key={x + i} style={{ ...font, color: i % 2 ? c.black : c.primary }}>
@@ -540,7 +540,7 @@ function Voice({ guide, project, t, font, brandDir, showAuto }: GuidePageProps &
           <h3 className="gp-h3">
             <Icon.Check size={16} /> {t("doLabel")}
           </h3>
-          <ul dir={brandDir}>
+          <ul className="gp-txt">
             {guide.voice.do.map((x, i) => (
               <li key={i}>{x}</li>
             ))}
@@ -550,7 +550,7 @@ function Voice({ guide, project, t, font, brandDir, showAuto }: GuidePageProps &
           <h3 className="gp-h3">
             <Icon.Close size={16} /> {t("dontLabel")}
           </h3>
-          <ul dir={brandDir}>
+          <ul className="gp-txt">
             {guide.voice.dont.map((x, i) => (
               <li key={i}>{x}</li>
             ))}
@@ -578,13 +578,13 @@ function Motion({ project, assets, t }: GuidePageProps) {
         </figure>
         <div>
           <h3 className="gp-h3">{t("transitions")}</h3>
-          <div className="gp-chips" dir="ltr">
+          <div className="gp-chips">
             {transitions.map((x) => (
               <span key={x}>{x}</span>
             ))}
           </div>
           <h3 className="gp-h3">{t("scenes")}</h3>
-          <ol className="sp-scenes" dir="ltr">
+          <ol className="sp-scenes">
             {entries.map((e) => (
               <li key={e.scene.uid}>
                 <button

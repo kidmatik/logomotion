@@ -59,7 +59,7 @@ function Guidelines({ share, t, lang, setLang, dir }: { share: PublicShare; t: T
   const { assets, version } = useAssets(project, loader);
   const b = project.brand;
   // Pages published before the guidelines existed get a complete one from the brand kit.
-  const guide = useMemo(() => fillGuide(project, project.guide), [project]);
+  const guide = useMemo(() => fillGuide(project, project.guide, lang), [project, lang]);
   const [decision, setDecision] = useState<ShareComment | null>(null);
 
   useEffect(() => {
