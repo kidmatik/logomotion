@@ -12,6 +12,10 @@ const COPY: Record<SignInReason, { title: string; body: string }> = {
     title: "Sign in to save your project",
     body: "Your brand kit, scenes and media are saved to your account, so you can pick up on any device.",
   },
+  share: {
+    title: "Sign in to share a live brand page",
+    body: "Your brand page lives on your account, so you can update it and read your client's comments any time.",
+  },
   account: {
     title: "Sign in to LogoMotion",
     body: "Save your brand kits, projects and media to your account and download your videos.",

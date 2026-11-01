@@ -11,7 +11,7 @@ import { blobToElement, getBlob } from "../brand/media";
  * with the project. `version` bumps whenever something finishes loading so the
  * preview knows to redraw.
  */
-export function useAssets(project: Project) {
+export function useAssets(project: Project, loadBlob: (id: string) => Promise<Blob | null> = getBlob) {
   const [logo, setLogo] = useState<LogoAsset | null>(null);
   const [logoOutline, setLogoOutline] = useState<LogoAsset | null>(null);
   const [lettermark, setLettermark] = useState<LogoAsset | null>(null);
@@ -76,7 +76,7 @@ export function useAssets(project: Project) {
       media
         .filter((m) => !map.has(m.id))
         .map(async (m) => {
-          const blob = await getBlob(m.id);
+          const blob = await loadBlob(m.id).catch(() => null);
           if (!blob || !live) return;
           map.set(m.id, await blobToElement(blob, m.kind));
         }),

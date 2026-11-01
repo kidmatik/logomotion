@@ -18,7 +18,7 @@ const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
 /** The formats most social and video platforms want, for "Download all formats". */
 const ALL_FORMATS: Aspect[] = ["16:9", "9:16", "1:1"];
 
-export function TopBar({ store, assets }: { store: Store; assets: BrandAssets }) {
+export function TopBar({ store, assets, onQuickStart, onShare }: { store: Store; assets: BrandAssets; onQuickStart?: () => void; onShare?: () => void }) {
   const { project, update, undo, redo, canUndo, canRedo, replace } = store;
   const [progress, setProgress] = useState<number | null>(null);
   const [batch, setBatch] = useState<string | null>(null);
@@ -49,6 +49,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
     all: { label: "Download all 3 formats", run: () => doExport(1, ALL_FORMATS) },
     still: { label: "Download this frame", run: () => exportStill(project, assets, clock.t) },
     "save-file": { label: "Save project file", run: () => exportProjectFile(project) },
+    ...(onShare ? { share: { label: "Share a live page", run: onShare } } : {}),
   };
   const act = (id: string) => gated(id, actions[id].run);
 
@@ -98,6 +99,11 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
         <span className="brand-dot" aria-hidden />
         <ProjectSwitcher />
         <TemplatePicker value={project.template} onChange={switchTemplate} project={project} assets={assets} />
+        {onQuickStart && (
+          <button type="button" className="icon-btn" onClick={onQuickStart} title="Quick start: start again from your website, a logo or just a name" aria-label="Quick start">
+            <Icon.Sparkle size={18} />
+          </button>
+        )}
       </div>
 
       <div className="segmented" role="radiogroup" aria-label="Format">
@@ -165,6 +171,11 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
         {project.template === "logo-sting" && (
           <button type="button" className="ghost-btn" onClick={() => act("all")} disabled={progress !== null} title="Download 16:9, 9:16 and 1:1 versions">
             <Icon.Download size={16} /> All 3 formats
+          </button>
+        )}
+        {onShare && (
+          <button type="button" className="ghost-btn" onClick={onShare} title="A live brand page your client can watch, copy from and approve">
+            <Icon.Link size={16} /> Share
           </button>
         )}
         <button type="button" className="primary-btn" onClick={() => act("video")} disabled={progress !== null}>

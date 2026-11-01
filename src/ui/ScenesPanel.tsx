@@ -7,9 +7,11 @@ import { buildTimeline, effectiveDuration } from "../engine/renderer";
 import { clock } from "../state/clock";
 import { Help, RolePicker, Select, Slider, TextInput, Toggle } from "./controls";
 import { Icon } from "./icons";
+import { BackdropControl } from "./BackdropControl";
 import { GalleryControl } from "./GalleryControl";
 import { VisualSelect } from "./VisualSelect";
 import { ScreenControl } from "./ScreenControl";
+import { SurfaceControl } from "./SurfaceControl";
 
 const TRANSITIONS: { value: TransitionKind; label: string }[] = [
   { value: "cut", label: "Cut" },
@@ -21,6 +23,7 @@ const TRANSITIONS: { value: TransitionKind; label: string }[] = [
 
 function ParamControl({ def, value, onChange, store, scene }: { def: ParamDef; value: unknown; onChange: (v: string | number | boolean) => void; store: Store; scene: SceneInstance }) {
   const colors = resolveColors(store.project.brand);
+  if (def.showIf && !def.showIf(scene.params)) return null;
   switch (def.type) {
     case "role":
       return (
@@ -67,6 +70,8 @@ function ParamControl({ def, value, onChange, store, scene }: { def: ParamDef; v
           onChange={onChange}
         />
       );
+    case "surface":
+      return <SurfaceControl label={def.label} value={String(value ?? "")} store={store} sceneUid={scene.uid} onChange={onChange} />;
     case "media":
       // The second (phone) screen only matters in the Desktop + phone layout.
       if (def.key === "mobile" && scene.params.frame !== "duo") return null;
@@ -150,6 +155,7 @@ function SceneRow({
             <span className="field-label">Transition in</span>
             <Select value={scene.transition} options={TRANSITIONS} onChange={(v) => set((s) => void (s.transition = v))} />
           </div>
+          <BackdropControl scene={scene} store={store} />
           {def.params.map((p, i) => (
             <div key={p.key} className="param">
               {p.group && p.group !== def.params[i - 1]?.group && <h4 className="param-group">{p.group}</h4>}

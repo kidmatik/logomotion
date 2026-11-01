@@ -7,6 +7,7 @@ import { clock, useClock } from "../state/clock";
 import { Icon } from "./icons";
 import { music } from "../audio/engine";
 import { buildScore } from "../audio/score";
+import { onMockupAsset } from "../mockup/library";
 
 function fmt(t: number) {
   const m = Math.floor(t / 60);
@@ -42,6 +43,9 @@ export function Preview({ project, assets, assetsVersion }: { project: Project; 
   useEffect(() => {
     dirty.current = true;
   }, [project, assets, assetsVersion, box]);
+
+  // Mockup photos load on demand; redraw when one arrives.
+  useEffect(() => onMockupAsset(() => (dirty.current = true)), []);
 
   useEffect(() => {
     let raf = 0;
