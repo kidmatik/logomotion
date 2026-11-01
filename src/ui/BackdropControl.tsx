@@ -1,8 +1,8 @@
-import type { Backdrop, BrandGradient, ColorRole, SceneInstance } from "../types";
+import type { Backdrop, BrandGradient, ColorRole, SceneColors, SceneInstance } from "../types";
 import type { Store } from "../state/store";
 import { DEFAULT_BACKDROP, brandGradients, gradientCss } from "../engine/backdrop";
 import { resolveColors } from "../engine/kit";
-import { Help, LinkButton, Select, Slider } from "./controls";
+import { ColorSwatch, Help, LinkButton, Select, Slider } from "./controls";
 import { Icon } from "./icons";
 
 const MODES: { value: Backdrop["mode"]; label: string }[] = [
@@ -146,6 +146,91 @@ export function GradientsEditor({ store }: { store: Store }) {
       >
         <Icon.Plus size={14} /> Add a gradient
       </LinkButton>
+    </div>
+  );
+}
+
+const COLOR_ROLES: { role: "primary" | "secondary" | "black" | "white"; label: string; hint: string }[] = [
+  { role: "black", label: "Dark", hint: "Text and dark backgrounds" },
+  { role: "white", label: "Light", hint: "Backgrounds and light text" },
+  { role: "primary", label: "Primary", hint: "Main accent" },
+  { role: "secondary", label: "Secondary", hint: "Highlights" },
+];
+
+/**
+ * Colours for one scene: every brand colour the scene uses can be swapped for
+ * any colour here, and the logo can keep its colours or take one colour.
+ */
+export function SceneColorsControl({ scene, store }: { scene: SceneInstance; store: Store }) {
+  const { project, update } = store;
+  const brand = resolveColors(project.brand);
+  const own = scene.colors ?? {};
+  const changed = Object.values(own).some(Boolean);
+  const set = (patch: SceneColors, key?: string) =>
+    update((d) => {
+      const s = d.scenes.find((x) => x.uid === scene.uid);
+      if (!s) return;
+      const next = { ...(s.colors ?? {}), ...patch };
+      for (const k of Object.keys(next) as (keyof SceneColors)[]) if (!next[k]) delete next[k];
+      s.colors = Object.keys(next).length ? next : undefined;
+    }, key && `${scene.uid}:col:${key}`);
+  const logoMode = !own.logo ? "brand" : own.logo === "original" ? "original" : "custom";
+
+  return (
+    <div className="scene-colors">
+      <h4 className="param-group">Colours</h4>
+      <div className="scene-swatches">
+        {COLOR_ROLES.map(({ role, label, hint }) => (
+          <div key={role} className={"scene-swatch" + (own[role] ? " custom" : "")} title={hint}>
+            <ColorSwatch
+              label={label}
+              value={own[role] ?? brand[role]}
+              onChange={(v) => set({ [role]: v }, role)}
+              badge={
+                own[role] ? (
+                  <button type="button" className="swatch-reset" onClick={() => set({ [role]: undefined })} aria-label={`Use the brand's ${label.toLowerCase()} colour`} title="Back to brand colour">
+                    ↺
+                  </button>
+                ) : null
+              }
+            />
+            <span className="scene-swatch-hint">{hint}</span>
+          </div>
+        ))}
+      </div>
+      <div className="field">
+        <span className="field-label">Logo colour</span>
+        <div className="segmented wide" role="radiogroup" aria-label="Logo colour">
+          {(
+            [
+              ["brand", "Brand setting"],
+              ["original", "Original"],
+              ["custom", "One colour"],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="radio"
+              aria-checked={logoMode === id}
+              className={logoMode === id ? "active" : ""}
+              onClick={() => set({ logo: id === "brand" ? undefined : id === "original" ? "original" : logoMode === "custom" ? own.logo : brand.primary })}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        {logoMode === "custom" && <ColorSwatch label="Logo" value={own.logo!} onChange={(v) => set({ logo: v }, "logo")} />}
+      </div>
+      <Help>These change this scene only. Brand colours stay the same everywhere else.</Help>
+      <div className="scene-colors-actions">
+        {changed && (
+          <>
+            <LinkButton onClick={() => update((d) => void d.scenes.forEach((s) => (s.colors = { ...own })))}>Use these colours on every scene</LinkButton>
+            <LinkButton onClick={() => set({ primary: undefined, secondary: undefined, black: undefined, white: undefined, logo: undefined })}>Reset to brand colours</LinkButton>
+          </>
+        )}
+      </div>
     </div>
   );
 }

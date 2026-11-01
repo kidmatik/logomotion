@@ -1,7 +1,7 @@
 import type { Aspect, Project, SceneInstance } from "../types";
 import { paintBackdrop } from "./backdrop";
 import { sceneDef } from "../scenes/registry";
-import { RenderCtx, brandIsRtl, ease, type BrandAssets, type VideoRequest } from "./kit";
+import { RenderCtx, brandIsRtl, ease, sceneBrand, type BrandAssets, type VideoRequest } from "./kit";
 
 export const TRANSITION_TIME = 0.5;
 
@@ -59,10 +59,11 @@ function scratchCanvas(key: "a" | "b", w: number, h: number) {
 
 function drawScene(ctx: CanvasRenderingContext2D, w: number, h: number, project: Project, assets: BrandAssets, entry: TimelineEntry, local: number, requests: VideoRequest[]) {
   const def = sceneDef(entry.scene.type)!;
-  const rc = new RenderCtx(ctx, w, h, project.brand, assets);
+  const brand = sceneBrand(project.brand, entry.scene.colors);
+  const rc = new RenderCtx(ctx, w, h, brand, assets, entry.scene.colors?.logo || undefined);
   ctx.save();
   // A background override is painted first, and the scene's own first full-frame fill is skipped.
-  const custom = paintBackdrop(ctx, w, h, project.brand, entry.scene.backdrop, local);
+  const custom = paintBackdrop(ctx, w, h, brand, entry.scene.backdrop, local);
   const fillRect = ctx.fillRect;
   if (custom) {
     let skipped = false;

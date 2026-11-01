@@ -1,4 +1,4 @@
-import type { BrandKit, ColorRole, MediaItem, ParamValue } from "../types";
+import type { BrandKit, ColorRole, MediaItem, ParamValue, SceneColors } from "../types";
 import { autoSecondary, hexToRgb } from "../brand/color";
 import { rasterLogo, type LogoAsset } from "../brand/logo";
 
@@ -49,6 +49,16 @@ export interface ResolvedColors {
   secondary: string;
   black: string;
   white: string;
+}
+
+/** The brand as one scene sees it, with that scene's colour overrides applied. */
+export function sceneBrand(brand: BrandKit, colors?: SceneColors): BrandKit {
+  if (!colors) return brand;
+  const { logo: _logo, ...roles } = colors;
+  const set = Object.fromEntries(Object.entries(roles).filter(([, v]) => !!v)) as Partial<BrandKit["colors"]>;
+  if (!Object.keys(set).length) return brand;
+  const base = resolveColors(brand);
+  return { ...brand, colors: { ...brand.colors, secondary: base.secondary, ...set }, secondaryAuto: false };
 }
 
 export function resolveColors(brand: BrandKit): ResolvedColors {
@@ -176,6 +186,8 @@ export class RenderCtx {
     readonly h: number,
     readonly brand: BrandKit,
     readonly assets: BrandAssets,
+    /** A scene's own logo colour: "original" or a hex. */
+    readonly logoOverride?: string,
   ) {
     // One unit = 1px at a 1080px short side, so layouts scale with any export size.
     this.u = Math.min(w, h) / 1080;
@@ -284,7 +296,8 @@ export class RenderCtx {
   drawLogo(cx: number, cy: number, height: number, color: string, opts: { alpha?: number; knockout?: boolean; asset?: LogoAsset | null } = {}) {
     const asset = opts.asset ?? this.assets.logo;
     if (!asset || height <= 0.5) return { w: 0, h: 0 };
-    const tint = this.brand.logoColorMode === "primary" || opts.knockout ? color : null;
+    const o = this.logoOverride;
+    const tint = o && o !== "original" ? o : o === "original" && !opts.knockout ? null : this.brand.logoColorMode === "primary" || opts.knockout ? color : null;
     const r = rasterLogo(asset, height, tint);
     const w = height * asset.ratio;
     const { ctx } = this;
