@@ -8,8 +8,8 @@
  * mapped to Google Fonts. Every request goes through safeFetch, which refuses
  * private addresses on every redirect hop.
  */
-import { FetchError, safeFetch, text } from "./_lib/safeFetch";
-import { ColorTally, FontTally, GradientTally, LOOKALIKE, assignRoles, readPage, toHex } from "./_lib/brandExtract";
+import { FetchError, safeFetch, text } from "./_lib/safeFetch.js";
+import { ColorTally, FontTally, GradientTally, LOOKALIKE, assignRoles, readPage, toHex } from "./_lib/brandExtract.js";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
