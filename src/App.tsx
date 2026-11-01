@@ -35,17 +35,16 @@ export default function App({ initial, persist }: { initial: Project; persist: (
   const account = useAccount();
   const { project, undo, redo } = store;
   const { assets, version, addMediaElement } = useAssets(project);
-  // The project is either a film or a brand guidelines page (which plays the film at the top).
-  const [view, setViewState] = useState<View>(() => (initial.guide ? "page" : "video"));
-  const [tab, setTab] = useState<Tab>(() => (initial.guide ? "page" : "brand"));
+  // The Page tab shows the brand guidelines page in the stage; every other tab shows the film.
+  const [tab, setTabState] = useState<Tab>("brand");
+  const view: View = tab === "page" ? "page" : "video";
   const [picked, setPicked] = useState<GuideSectionId | "hero" | null>(null);
-  const setView = (v: View) => {
-    setViewState(v);
-    if (v === "page") {
-      if (!store.project.guide) store.update((d) => void (d.guide = emptyGuide()));
-      setTab("page");
-    }
+  const setTab = (t: Tab) => {
+    if (t === "page" && !store.project.guide) store.update((d) => void (d.guide = emptyGuide()));
+    setTabState(t);
   };
+  const setView = (v: View) => setTab(v === "page" ? "page" : tab === "page" ? "brand" : tab);
+  const [sideW, setSideW] = useSidebarWidth();
   // store.update is stable, so the library only needs building once.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const library = useMemo(() => createLibrary(store, addMediaElement), [store.update, addMediaElement]);
@@ -61,7 +60,6 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     setOnboarding(false);
     clock.seek(0);
     clock.setPlaying(true);
-    setViewState(page ? "page" : "video");
     setTab(page ? "page" : "brand");
     if (r.capture || r.files.length) {
       setNotice(r.capture ? "Capturing your website and adding your files…" : "Adding your files…");
@@ -119,9 +117,8 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     <LibraryContext.Provider value={library}>
     <div className="app">
       <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} onShare={() => (setView("page"), setSharing(true))} />
-      <main className="workspace">
+      <main className="workspace" style={{ ["--sidebar-w" as string]: `${sideW}px` }}>
         <section className={"stage-col" + (view === "page" ? " page-view" : "")}>
-          <ViewSwitch view={view} onChange={setView} />
           {view === "page" ? (
             <GuideStage project={project} assets={assets} assetsVersion={version} picked={picked} onPick={(id) => (setPicked(id), setTab("page"))} onLogoSvg={(svg) => store.update((d) => void (d.brand.logoSvg = svg))} />
           ) : (
@@ -137,17 +134,18 @@ export default function App({ initial, persist }: { initial: Project; persist: (
           )}
         </section>
         <aside className="sidebar">
+          <SidebarResizer width={sideW} onChange={setSideW} />
           <nav className="tabs" role="tablist">
             {(
               [
-                ["page", "Page"],
                 ["brand", "Brand"],
                 ["scenes", "Scenes"],
                 ["media", "Media"],
                 ["music", "Music"],
+                ["page", "Page"],
               ] as [Tab, string][]
             ).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => (id === "page" ? setView("page") : setTab(id))}>
+              <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
                 {label}
                 {id === "media" && project.media.length > 0 && <span className="count">{project.media.length}</span>}
               </button>
@@ -182,20 +180,66 @@ export default function App({ initial, persist }: { initial: Project; persist: (
   );
 }
 
-function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+const SIDE_KEY = "logomotion.sidebar";
+const SIDE_MIN = 340, SIDE_MAX = 760, SIDE_DEFAULT = 430;
+
+function useSidebarWidth(): [number, (w: number) => void] {
+  const [w, setW] = useState(() => {
+    try {
+      const v = Number(localStorage.getItem(SIDE_KEY));
+      if (v >= SIDE_MIN && v <= SIDE_MAX) return v;
+    } catch {
+      /* storage blocked */
+    }
+    return SIDE_DEFAULT;
+  });
+  const set = (v: number) => {
+    const c = Math.round(Math.min(SIDE_MAX, Math.max(SIDE_MIN, v, 0)));
+    setW(c);
+    try {
+      localStorage.setItem(SIDE_KEY, String(c));
+    } catch {
+      /* storage blocked */
+    }
+  };
+  return [w, set];
+}
+
+/** The sidebar's left edge: drag it (mouse, pen or touch) to make the sidebar wider or narrower. Double-click resets. */
+function SidebarResizer({ width, onChange }: { width: number; onChange: (w: number) => void }) {
   return (
-    <div className="view-switch" role="tablist" aria-label="What you're making">
-      {(
-        [
-          ["page", "Brand guidelines page"],
-          ["video", "Video"],
-        ] as [View, string][]
-      ).map(([id, label]) => (
-        <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? "active" : ""} onClick={() => onChange(id)}>
-          {label}
-        </button>
-      ))}
-    </div>
+    <div
+      className="side-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Resize the sidebar"
+      aria-valuemin={SIDE_MIN}
+      aria-valuemax={SIDE_MAX}
+      aria-valuenow={width}
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowLeft") onChange(width + 20);
+        if (e.key === "ArrowRight") onChange(width - 20);
+      }}
+      onDoubleClick={() => onChange(SIDE_DEFAULT)}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        const el = e.currentTarget;
+        el.setPointerCapture(e.pointerId);
+        const x0 = e.clientX, w0 = width;
+        document.body.classList.add("resizing");
+        const move = (ev: PointerEvent) => onChange(w0 + (x0 - ev.clientX));
+        const up = () => {
+          document.body.classList.remove("resizing");
+          el.removeEventListener("pointermove", move);
+          el.removeEventListener("pointerup", up);
+          el.removeEventListener("pointercancel", up);
+        };
+        el.addEventListener("pointermove", move);
+        el.addEventListener("pointerup", up);
+        el.addEventListener("pointercancel", up);
+      }}
+    />
   );
 }
 
