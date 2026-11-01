@@ -45,7 +45,7 @@ export const signoffScene: SceneDef = {
 
     ctx.save();
     ctx.font = rc.font(size, 400);
-    ctx.direction = isRtlText(text) ? "rtl" : "ltr";
+    ctx.direction = rc.textDir(text);
     const full = ctx.measureText(text).width;
     ctx.restore();
     const markK = p.showMark ? ease.outBack(seg(t, end + 0.1, end + 0.6)) : 0;

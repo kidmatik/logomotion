@@ -548,7 +548,7 @@ export const marqueeScene: SceneDef = {
     ctx.save();
     ctx.font = rc.font(size, Math.max(700, rc.brand.font.weight));
     ctx.textBaseline = "middle";
-    ctx.direction = isRtlText(text) ? "rtl" : "ltr";
+    ctx.direction = rc.textDir(text);
     ctx.fillStyle = g;
     ctx.fillText(text, x, h / 2);
     ctx.restore();

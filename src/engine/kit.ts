@@ -52,7 +52,8 @@ export interface ResolvedColors {
 }
 
 /** The brand as one scene sees it, with that scene's colour overrides applied. */
-export function sceneBrand(brand: BrandKit, colors?: SceneColors): BrandKit {
+export function sceneBrand(brand: BrandKit, colors?: SceneColors, direction?: "rtl" | "ltr"): BrandKit {
+  if (direction) brand = { ...brand, direction };
   if (!colors) return brand;
   const { logo: _logo, ...roles } = colors;
   const set = Object.fromEntries(Object.entries(roles).filter(([, v]) => !!v)) as Partial<BrandKit["colors"]>;
@@ -188,6 +189,8 @@ export class RenderCtx {
     readonly assets: BrandAssets,
     /** A scene's own logo colour: "original" or a hex. */
     readonly logoOverride?: string,
+    /** A scene's own reading direction, applied to layout and all text. */
+    readonly forcedDir?: "rtl" | "ltr",
   ) {
     // One unit = 1px at a 1080px short side, so layouts scale with any export size.
     this.u = Math.min(w, h) / 1080;
@@ -280,6 +283,11 @@ export class RenderCtx {
   fill(color: string) {
     this.ctx.fillStyle = color;
     this.ctx.fillRect(0, 0, this.w, this.h);
+  }
+
+  /** Text direction: forced when the scene sets one, otherwise from the text itself. */
+  textDir(str: string): CanvasDirection {
+    return this.forcedDir ?? (isRtlText(str) ? "rtl" : "ltr");
   }
 
   /** Logo size in px for a nominal height, with the brand's global logo scale applied. */
@@ -398,7 +406,7 @@ export class RenderCtx {
     }
     this.ctx.save();
     this.ctx.font = this.font(size);
-    this.ctx.direction = isRtlText(this.brand.name) ? "rtl" : "ltr";
+    this.ctx.direction = this.textDir(this.brand.name);
     const w = this.ctx.measureText(this.brand.name).width;
     this.ctx.restore();
     return { w, h: size };
@@ -418,7 +426,7 @@ export class RenderCtx {
     ctx.fillStyle = color;
     ctx.textBaseline = "middle";
     ctx.textAlign = "left";
-    ctx.direction = isRtlText(this.brand.name) ? "rtl" : "ltr";
+    ctx.direction = this.textDir(this.brand.name);
     ctx.fillText(this.brand.name, x, cy + size * 0.04);
     const w = ctx.measureText(this.brand.name).width;
     ctx.restore();
@@ -436,7 +444,7 @@ export class RenderCtx {
     ctx.textAlign = opts.align ?? "left";
     ctx.textBaseline = opts.baseline ?? "alphabetic";
     // Hebrew runs right to left; URLs and handles inside it keep their own order.
-    ctx.direction = isRtlText(str) ? "rtl" : "ltr";
+    ctx.direction = this.textDir(str);
     if (opts.tracking) (ctx as CanvasRenderingContext2D & { letterSpacing: string }).letterSpacing = `${opts.tracking * size}px`;
     ctx.fillText(str, x, y);
     const w = ctx.measureText(str).width;
