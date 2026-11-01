@@ -34,6 +34,10 @@ export interface LogoOption {
   svg: string;
   /** Keep the logo's own colours rather than tinting it. */
   original: boolean;
+  /** A small bitmap (usually the site icon): it will look soft when large. */
+  small?: boolean;
+  /** The site's icon (favicon, touch icon) rather than the logo shown on the page. */
+  icon?: boolean;
   label: string;
 }
 
@@ -117,22 +121,44 @@ export async function fillColorsFromIcon(site: SiteBrand): Promise<SiteBrand> {
   return { ...site, colors: { ...site.colors, primary: found[0], secondary: found[1] ?? null, palette: found } };
 }
 
+/** Above this many distinct colours an image is a picture, not a logo (see colourVariety). */
+const LOGO_MAX_VARIETY = 60;
+
+/**
+ * The logo's own colours beat the colours counted in the site's CSS (which
+ * include the website builder's defaults). For a bitmap logo, put its main
+ * colour first and keep the site's best other colour as secondary.
+ */
+export async function preferLogoColors(site: SiteBrand, logo: LogoOption | undefined): Promise<SiteBrand> {
+  const png = logo?.svg.match(/href="(data:image\/png;base64,[^"]+)"/)?.[1];
+  if (!png) return site;
+  const found = await imageColors(png).catch((): string[] => []);
+  if (!found.length) return site;
+  const c = site.colors;
+  const others = [c.primary, c.secondary, ...c.palette].filter((h): h is string => !!h && !found.includes(h));
+  return { ...site, colors: { ...c, primary: found[0], secondary: found[1] ?? others[0] ?? null, palette: [...found, ...others.filter((h, i) => others.indexOf(h) === i)].slice(0, 10) } };
+}
+
 /** Turn the site's logo candidates into SVGs the editor can use, best first. */
 export async function logoOptions(site: SiteBrand): Promise<LogoOption[]> {
   const out: LogoOption[] = [];
   for (const [i, l] of site.logos.entries()) {
     if (l.kind === "svg" && l.svg) {
       const svg = cleanSiteSvg(l.svg);
-      if (svg) out.push({ id: `site-${i}`, svg, original: isMultiColor(svg), label: l.from === "icon" ? "Site icon" : "From your site" });
+      if (svg) out.push({ id: `site-${i}`, svg, original: isMultiColor(svg), icon: /icon/.test(l.from), label: l.from === "icon" ? "Site icon" : "From your site" });
     } else if (l.kind === "image" && l.dataUrl) {
       const r = await bitmapToSvg(l.dataUrl).catch(() => null);
       // A big picture with a busy background is a banner or a screenshot, not a logo.
       if (r && r.opaque && (Math.max(r.width, r.height) > 320 || !/icon/.test(l.from))) continue;
-      if (r) out.push({ id: `site-${i}`, svg: r.svg, original: true, label: l.from === "app icon" ? "App icon" : "From your site" });
+      // Too many colours for a logo: a screenshot, product shot or photo, even on a transparent background.
+      if (r && r.variety > LOGO_MAX_VARIETY) continue;
+      if (r) out.push({ id: `site-${i}`, svg: r.svg, original: true, small: r.small, icon: /icon/.test(l.from), label: l.from === "app icon" ? "App icon" : "From your site" });
     }
   }
-  // Vector logos first: they stay sharp and can take the brand colours.
-  out.sort((a, b) => Number(/<image\b/.test(a.svg)) - Number(/<image\b/.test(b.svg)));
+  // The site's real logo (header, home link, structured data) before its icon, which is often
+  // just the symbol or a tiny square; within each, vectors first since they stay sharp.
+  const rank = (o: LogoOption) => (o.icon ? 2 : 0) + (/<image\b/.test(o.svg) ? 1 : 0);
+  out.sort((a, b) => rank(a) - rank(b));
   // Drop exact duplicates (sites often repeat the header logo in the footer).
   return out.filter((o, i) => out.findIndex((p) => p.svg === o.svg) === i);
 }

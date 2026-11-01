@@ -160,6 +160,10 @@ export async function GET(request: Request) {
     if (r) logos.push(r);
   }
   if (logos[0]?.kind === "svg") svgColors(logos[0].svg, colors);
+  // Website builders style every site with their own defaults (Framer's link blue, Webflow's button blue).
+  // They say nothing about the brand, so leave them out unless the site's own logo uses them.
+  const builderDefaults = /framerusercontent\.com|content="Framer/i.test(html) ? ["#0099FF"] : /webflow/i.test(html) ? ["#3898EC"] : [];
+  for (const hex of builderDefaults) if (!(logos[0]?.kind === "svg" && logos[0].svg.toUpperCase().includes(hex))) colors.remove(hex);
 
   const roles = assignRoles(colors.list());
 

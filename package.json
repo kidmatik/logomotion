@@ -18,6 +18,7 @@
   "homepage": "https://github.com/kidmatik/logomotion#readme",
   "dependencies": {
     "@supabase/supabase-js": "^2.118.0",
+    "imagetracerjs": "^1.2.6",
     "mp4-muxer": "^5.2.2",
     "node-html-parser": "^9.0.6",
     "opentype.js": "^2.0.0",

@@ -95,6 +95,11 @@ export class ColorTally {
     }
     for (const c of css.match(COLOR_TOKEN) ?? []) this.add(c, base);
   }
+  /** Forget a colour, e.g. a website builder's default that every site on it carries. */
+  remove(token: string) {
+    const hex = toHex(token);
+    if (hex) this.map.delete(hex);
+  }
   list(): ColorHit[] {
     return [...this.map].map(([hex, weight]) => ({ hex, weight })).sort((a, b) => b.weight - a.weight);
   }
@@ -481,6 +486,9 @@ export function readPage(html: string, page: URL): PageInfo {
     if (i < 3) score += 1;
     if (inLogoWall(img)) score -= 7;
     if (/\.svg(\?|$)/i.test(src)) score += 1;
+    // A picture in the page body without "logo" anywhere on it is content (a hero shot, a screenshot), not the logo.
+    const inHeader = !!closest(img, (e) => /^(header|nav)$/i.test(e.tagName) || /header|navbar/.test(attrs(e, 1)));
+    if (!/logo|brand|wordmark/.test(label) && !inHeader) return;
     if (score >= 5) logos.push({ score, url: src, from: "page" });
   });
 

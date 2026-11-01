@@ -10,7 +10,7 @@ import { prepareSvg } from "../brand/logo";
 import { svgUrl, tinted } from "../brand/logoUrl";
 import { bitmapToSvg } from "../brand/logoImport";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
-import { brandFromSite, fillColorsFromIcon, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
+import { brandFromSite, fillColorsFromIcon, preferLogoColors, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
 import { HEBREW_FONTS, ensureGoogleFont } from "../brand/fonts";
 import { isRtlText } from "../engine/kit";
 import { normalizeHex } from "../brand/color";
@@ -241,8 +241,9 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
     setBusy(true);
     setError(null);
     try {
-      const s = await fillColorsFromIcon(await readSite(url));
-      const logos = await logoOptions(s);
+      const read = await fillColorsFromIcon(await readSite(url));
+      const logos = await logoOptions(read);
+      const s = read.blocked ? read : await preferLogoColors(read, logos[0]);
       setSite(s);
       setSiteLogos(logos);
       setDraft((d) => {
@@ -454,6 +455,14 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
               <div className="ob-field">
                 <label>{t("logo")}</label>
                 {site && !siteLogos.length && <p className="ob-note">{t("noLogoFound")}</p>}
+                {siteLogos.some((l) => l.id !== "upload" && /<image\b/.test(l.svg) && l.svg === brand.logoSvg) && (
+                  <div className="ob-note ob-warn ob-ask-vector">
+                    <span>{t(siteLogos.some((l) => l.small && l.svg === brand.logoSvg) ? "logoSmall" : "logoBitmap")}</span>
+                    <DropZone accept=".svg,image/svg+xml,image/png" onFiles={uploadLogo} className="ghost-btn small">
+                      <Icon.Upload size={14} /> {t("uploadSvg")}
+                    </DropZone>
+                  </div>
+                )}
                 <div className="ob-logos">
                   {[...siteLogos.map((l) => ({ ...l, made: false })), ...marks.map((m) => ({ id: m.id, svg: m.svg, original: false, label: m.label, made: true }))].map((l) => (
                     <button

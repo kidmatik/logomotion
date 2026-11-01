@@ -1104,3 +1104,6 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   .sp-actions > * { flex: 1 1 auto; justify-content: center; }
 }
 .ob-note.ob-warn { color: var(--warn-ink); background: var(--warn-bg); border-radius: var(--radius-sm); padding: 10px 12px; margin: 4px 0 8px; }
+.ob-ask-vector { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.ob-ask-vector > span { flex: 1 1 220px; }
+.ob-ask-vector .dropzone { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
