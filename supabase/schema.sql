@@ -141,9 +141,13 @@ grant execute on function public.add_share_comment(text, text, text, real, text)
 insert into storage.buckets (id, name, public, file_size_limit)
 values ('shared', 'shared', true, 104857600)
 on conflict (id) do nothing;
+drop policy if exists "shared media: read" on storage.objects;
 drop policy if exists "shared media: add" on storage.objects;
 drop policy if exists "shared media: change" on storage.objects;
 drop policy if exists "shared media: delete" on storage.objects;
+-- Owners can list their page's files (visitors read them through the public URL).
+create policy "shared media: read" on storage.objects for select to authenticated
+  using (bucket_id = 'shared' and exists (select 1 from public.shares s where s.id = (storage.foldername(name))[1] and s.user_id = auth.uid()));
 create policy "shared media: add" on storage.objects for insert to authenticated
   with check (bucket_id = 'shared' and exists (select 1 from public.shares s where s.id = (storage.foldername(name))[1] and s.user_id = auth.uid()));
 create policy "shared media: change" on storage.objects for update to authenticated
