@@ -17,7 +17,7 @@ function svgPreviewUrl(svg: string) {
   return p.ok && p.svg ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(p.svg) : "";
 }
 
-function LogoSlot({
+export function LogoSlot({
   svg,
   isPlaceholder,
   title,

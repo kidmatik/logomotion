@@ -94,7 +94,7 @@ export function ShareDialog({ project, onClose }: { project: Project; onClose: (
     body = (
       <>
         <p className="share-text">
-          Publish a live brand page: the film playing in real time, the logo on light, dark and brand colour with SVG downloads, colours with HEX, RGB and CMYK, the type specimen, and a feedback box where your client can comment on any moment or approve.
+          Publish your brand guidelines as a live page: the film at the top, then the brand story, logo rules and downloads, colours with HEX, RGB and CMYK, typography, voice, examples and ready-made formats, plus a feedback box where your team or client can comment or approve.
         </p>
         <label className="share-field">
           <span>Page title</span>
@@ -212,7 +212,7 @@ export function ShareDialog({ project, onClose }: { project: Project; onClose: (
         <button type="button" className="icon-btn signin-close" aria-label="Close" onClick={onClose}>
           <Icon.Close size={16} />
         </button>
-        <h2>Live brand page</h2>
+        <h2>Live brand guidelines</h2>
         {body}
         {error && <p className="signin-error">{error}</p>}
       </div>

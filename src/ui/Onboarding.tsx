@@ -8,7 +8,7 @@ import { templateById } from "../templates";
 import { PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
 import { prepareSvg } from "../brand/logo";
 import { svgUrl, tinted } from "../brand/logoUrl";
-import { bitmapToSvg } from "../brand/logoImport";
+import { bitmapToSvg, isMultiColor } from "../brand/logoImport";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
 import { brandFromSite, fillColorsFromIcon, isWide, pickLogoSlots, preferLogoColors, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
 import { HEBREW_FONTS, ensureGoogleFont } from "../brand/fonts";
@@ -22,6 +22,10 @@ import { Icon } from "./icons";
 import { clock } from "../state/clock";
 import { music } from "../audio/engine";
 import { useLang, type TKey } from "../i18n";
+import { colorsFromLogo, nameFromFile } from "../guide/logoColors";
+import { readBrandPdf } from "../guide/pdf";
+import { brandFromPdf, guideFromPdf } from "../guide/sources";
+import { emptyGuide } from "../guide/model";
 
 export type Goal = "sting" | "reel" | "film" | "page";
 export type Audience = "mine" | "client";
@@ -192,6 +196,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
   const [siteLogos, setSiteLogos] = useState<LogoOption[]>([]);
   const [made, setMade] = useState<MadeLogo[]>([]);
   const [noLogoName, setNoLogoName] = useState("");
+  const [pdfName, setPdfName] = useState<string | null>(null);
   const [role, setRole] = useState<ColorRole>("primary");
   const [capture, setCapture] = useState(true);
   const [files, setFiles] = useState<File[]>([]);
@@ -284,7 +289,11 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
     let original = false;
     if (f.type === "image/svg+xml" || /\.svg$/i.test(f.name)) {
       const text = await f.text();
-      if (prepareSvg(text).ok) svg = text;
+      if (prepareSvg(text).ok) {
+        svg = text;
+        // A logo in several colours keeps them; a one-colour logo takes the brand colour.
+        original = isMultiColor(text);
+      }
     } else if (f.type.startsWith("image/")) {
       const dataUrl = await new Promise<string>((res) => {
         const r = new FileReader();
@@ -299,7 +308,44 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
     const option = { id: "upload", svg, original, label: f.name };
     setSiteLogos((l) => [option, ...l.filter((x) => x.id !== "upload")]);
     setBrand({ logoSvg: svg, logoColorMode: original ? "original" : "primary" });
+    // Only a logo to go on: take the colours from it, and a name from the file, unless a site or PDF gave better ones.
+    if (!site && !pdfName) {
+      const fromLogo = await colorsFromLogo(svg, brand).catch(() => null);
+      const guessed = nameFromFile(f.name);
+      setDraft((d) => ({
+        ...d,
+        brand: {
+          ...d.brand,
+          ...(fromLogo ?? {}),
+          colors: { ...d.brand.colors, ...(fromLogo?.colors ?? {}) },
+          ...(guessed && d.brand.name === defaultBrand.name ? { name: guessed, credit: `by ${guessed}`, website: "", handle: guessed.toLowerCase().replace(/[^\w.]+/g, ""), tagline: "" } : {}),
+        },
+      }));
+    }
     setStep(2);
+  };
+
+  const readPdf = async (list: File[]) => {
+    const f = list[0];
+    if (!f) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const pdf = await readBrandPdf(f);
+      setPdfName(f.name);
+      setDraft((d) => {
+        const patch = brandFromPdf(pdf, d.brand);
+        return {
+          ...d,
+          brand: { ...d.brand, ...patch, colors: { ...d.brand.colors, ...(patch.colors ?? {}) } },
+          guide: guideFromPdf(pdf, d.brand, d.guide ?? emptyGuide()),
+        };
+      });
+    } catch (e) {
+      setError(t("pdfFailed", { msg: (e as Error).message }));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const startWithoutLogo = () => {
@@ -334,7 +380,9 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
   const finish = () => {
     localStorage.setItem(ONBOARDED_KEY, "1");
     localStorage.setItem(PROFILE_KEY, audience);
-    onFinish({ project: draft, goal: goal ?? "film", audience, capture: capture && site ? site.url : null, files });
+    const guide = draft.guide ?? (goal === "page" ? emptyGuide() : undefined);
+    const project = guide && site ? { ...draft, guide: { ...guide, source: { ...guide.source, site: site.url, siteText: site.description || guide.source.siteText } } } : guide ? { ...draft, guide } : draft;
+    onFinish({ project, goal: goal ?? "film", audience, capture: capture && site ? site.url : null, files });
   };
   const skip = () => {
     localStorage.setItem(ONBOARDED_KEY, "1");
@@ -444,6 +492,13 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
                   </div>
                 </form>
               </div>
+              <DropZone accept="application/pdf,.pdf" onFiles={readPdf} className={"ob-pdf" + (pdfName ? " done" : "")}>
+                <Icon.File size={18} />
+                <span>
+                  <strong>{pdfName ? t("pdfRead", { file: pdfName }) : t("pdfTitle")}</strong>
+                  <small>{pdfName ? t("pdfNext") : t("pdfSub")}</small>
+                </span>
+              </DropZone>
             </>
           )}
 

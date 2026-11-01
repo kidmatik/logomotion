@@ -152,4 +152,44 @@ export interface Project {
   /** Metadata only; the files themselves live in IndexedDB on this device. */
   media: MediaItem[];
   scenes: SceneInstance[];
+  /** The live brand guidelines page built from this project (see src/guide). */
+  guide?: BrandGuide;
+}
+
+export type GuideSectionId = "about" | "logo" | "files" | "color" | "type" | "voice" | "motion" | "examples" | "formats";
+
+/**
+ * The written part of the brand guidelines page. Everything visual (logo,
+ * colours, type, motion, examples, formats) comes from the brand kit and the
+ * film, so the page stays in step with the editor. Any field can be empty:
+ * the page fills the gaps from the logo and brand kit.
+ */
+export interface BrandGuide {
+  sections: { id: GuideSectionId; enabled: boolean }[];
+  /** One or two sentences under the brand name at the top of the page. */
+  intro: string;
+  /** The brand story: who it's for and what it stands for. */
+  about: string;
+  /** Three to five words the brand stands for. */
+  values: string[];
+  voice: { traits: string[]; do: string[]; dont: string[] };
+  logo: {
+    /** Clear space around the logo, as a fraction of the logo's height. */
+    clearSpace: number;
+    /** Smallest width on screen (px) and in print (mm). */
+    minPx: number;
+    minMm: number;
+  };
+  /** How much of a layout each colour should take, in percent. */
+  colorUsage: Record<ColorRole, number>;
+  /** Names for the four colours, e.g. "Sunset Orange". */
+  colorNames: Partial<Record<ColorRole, string>>;
+  /** More colours from the brand book, beyond the four roles. */
+  extraColors: { name: string; hex: string }[];
+  /** A second family for body text, when the brand has one. */
+  bodyFont: BrandFont | null;
+  /** Where the content came from. */
+  source: { pdf?: string; site?: string; siteText?: string };
+  /** Fields written automatically rather than by a person, so the editor can mark them. */
+  auto: string[];
 }
