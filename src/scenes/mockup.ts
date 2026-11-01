@@ -8,6 +8,7 @@ import { clamp, ease, lerp, seg, type ParamDef, type RenderCtx, type SceneDef } 
 import { buildArt, type ArtContent } from "../mockup/art";
 import { estimateAspect, invert, quadBounds, quadCenter, quadToPx, type Mat3, type Quad } from "../mockup/geometry";
 import { composite, surfaceStats } from "../mockup/gl";
+import { CAMERA_OPTIONS, cameraAt, covers, perspectiveView, type CameraStyle } from "../mockup/camera";
 import { MATERIALS, MOCKUPS, mockupById, mockupPhoto, type MaterialId, type MockupDef } from "../mockup/library";
 import type { ParamValue } from "../types";
 
@@ -135,17 +136,12 @@ const params: ParamDef[] = [
     key: "camera",
     label: "Camera",
     type: "select",
-    default: "push",
+    default: "orbit",
     group: "Motion",
-    options: [
-      { value: "push", label: "Slow push in" },
-      { value: "pull", label: "Slow pull out" },
-      { value: "drift", label: "Drift sideways" },
-      { value: "tilt", label: "Gentle tilt" },
-      { value: "still", label: "Still" },
-    ],
+    options: CAMERA_OPTIONS,
   },
   { key: "sweep", label: "Moving light", type: "boolean", default: true, group: "Motion" },
+  { key: "grade", label: "Brand colour grade", type: "number", default: 0, min: 0, max: 100, step: 1, unit: "%", group: "Look", help: "Tints the whole photo towards your brand colours, for a campaign look." },
 ];
 
 interface Resolved {
@@ -179,13 +175,6 @@ function resolve(rc: RenderCtx, p: Record<string, ParamValue>): Resolved | "load
   return { photo: img, pw: img.naturalWidth, ph: img.naturalHeight, quad, aspect: def.aspect || estimateAspect(quad), bend: def.bend ?? 0, arc: def.arc ?? 0, def };
 }
 
-/** Output pixel -> photo pixel for a camera centred on (cx, cy) at scale s, rotated by r. */
-function viewMatrix(w: number, h: number, cx: number, cy: number, s: number, r: number): Mat3 {
-  const c = Math.cos(r), sn = Math.sin(r);
-  const ox = w / 2, oy = h / 2;
-  return [c / s, sn / s, cx - (c * ox + sn * oy) / s, -sn / s, c / s, cy - (-sn * ox + c * oy) / s, 0, 0, 1];
-}
-
 function placeholder(rc: RenderCtx, text: string) {
   const { ctx, w, h, u } = rc;
   rc.fill(mix(rc.colors.white, rc.colors.black, 0.06));
@@ -207,8 +196,23 @@ export const mockupScene: SceneDef = {
   maxDuration: 10,
   params,
   render(rc, t, duration, p) {
+    renderMockup(rc, t, duration, p, String(p.base));
+  },
+};
+
+export interface MockupShotOptions {
+  /** Camera style override (the montage picks one per shot). */
+  camera?: CameraStyle;
+  /** Mirror the camera's moves (alternate shots swing the other way). */
+  mirror?: number;
+  /** Time the logo takes to appear; 0 = already there. */
+  revealTime?: number;
+}
+
+/** Draw one mockup photo with the logo and the camera move. Shared by the mockup and montage scenes. */
+export function renderMockup(rc: RenderCtx, t: number, duration: number, p: Record<string, ParamValue>, base: string, opt: MockupShotOptions = {}) {
     const { ctx, w, h } = rc;
-    const r = resolve(rc, p);
+    const r = resolve(rc, { ...p, base });
     if (r === "loading") return placeholder(rc, "");
     if (r === "missing") return placeholder(rc, "Add a photo in this scene's settings");
 
@@ -224,31 +228,43 @@ export const mockupScene: SceneDef = {
     else if (inkChoice !== "original") ink = rc.role(inkChoice);
     const useArtColor = inkChoice === "original" && (material === "print" || material === "embroidery");
 
-    // Camera: cover the frame, frame the logo area, and move slowly.
+    const style = (opt.camera ?? String(p.camera || "orbit")) as CameraStyle;
+    const cam = cameraAt(style, t, duration, opt.mirror ?? 1);
     const k = duration > 0 ? clamp(t / duration) : 0;
-    const cam = String(p.camera || "push");
     const b = quadBounds(r.quad);
-    const focus = r.def?.focus ? [r.def.focus[0] * r.pw, r.def.focus[1] * r.ph] : quadCenter(r.quad);
-    const cover = Math.max(w / r.pw, h / r.ph);
-    let zoom = 1.05, rot = 0, panX = 0;
-    const e = ease.inOutCubic(k);
-    if (cam === "push") zoom = lerp(1.04, 1.16, e);
-    else if (cam === "pull") zoom = lerp(1.18, 1.05, e);
-    else if (cam === "drift") (zoom = 1.12), (panX = lerp(-1, 1, e));
-    else if (cam === "tilt") (zoom = 1.12), (rot = lerp(-0.012, 0.012, e));
-    const s = cover * zoom;
-    const hw = w / 2 / s, hh = h / 2 / s;
-    // Rotation needs a little extra margin so no edge shows.
-    const m = Math.abs(rot) * Math.max(hw, hh);
-    let cx = focus[0] + panX * hw * 0.08, cy = focus[1];
-    cx = clamp(cx, hw + m, r.pw - hw - m);
-    cy = clamp(cy, hh + m, r.ph - hh - m);
-    const view = viewMatrix(w, h, cx, cy, s, rot);
-
-    // Make sure the logo itself stays in frame (vertical formats crop wide photos).
     const surfW = b.x1 - b.x0, surfH = b.y1 - b.y0;
+    const cover = Math.max(w / r.pw, h / r.ph);
+
+    // Logo size comes from the wide framing so it never jumps between shots.
+    const baseHw = w / 2 / (cover * 1.1), baseHh = h / 2 / (cover * 1.1);
     let fit = (r.def?.fit ?? 0.6) * (Number(p.size ?? 100) / 100);
-    fit = Math.min(fit, (hw * 2 * 0.86) / surfW, (hh * 2 * 0.86) / surfH, 0.96);
+    fit = Math.min(fit, (baseHw * 2 * 0.86) / surfW, (baseHh * 2 * 0.86) / surfH, 0.96);
+
+    // Camera: wide framing at close 0, the logo filling ~45% of the frame at close 1.
+    const pose = cam.pose;
+    const wide = r.def?.focus ? [r.def.focus[0] * r.pw, r.def.focus[1] * r.ph] : quadCenter(r.quad);
+    const qc = quadCenter(r.quad);
+    const logoCy = qc[1] + Number(p.offsetY ?? 0) / 100 * surfH * (1 - fit) * 0.5;
+    const focus = [lerp(wide[0], qc[0], pose.close), lerp(wide[1], logoCy, pose.close)];
+    const zClose = Math.max(1, 0.45 * Math.min(w / (surfW * fit * cover), h / (surfH * fit * cover)));
+    let s = cover * lerp(1, zClose, pose.close) * pose.zoom;
+    const hw = w / 2 / s, hh = h / 2 / s;
+    let cx = focus[0] + pose.dx * hw, cy = focus[1] + pose.dy * hh;
+    // Keep the logo itself in view (tall and square photos get cropped hard in wide formats).
+    const lw = (surfW * fit) / 2, lh = (surfH * fit) / 2;
+    if (hw > lw * 1.15) cx = clamp(cx, qc[0] + lw * 1.15 - hw, qc[0] - lw * 1.15 + hw);
+    if (hh > lh * 1.15) cy = clamp(cy, logoCy + lh * 1.15 - hh, logoCy - lh * 1.15 + hh);
+    cx = clamp(cx, Math.min(hw, r.pw / 2), Math.max(r.pw - hw, r.pw / 2));
+    cy = clamp(cy, Math.min(hh, r.ph / 2), Math.max(r.ph - hh, r.ph / 2));
+    let view = perspectiveView(w, h, cx, cy, s, pose.yaw, pose.pitch, pose.roll);
+    // Swings and rolls reveal the photo's edges; zoom in until they are out of frame.
+    for (let i = 0; i < 30 && !covers(view, w, h, r.pw, r.ph); i++) {
+      s *= 1.035;
+      const hw2 = w / 2 / s, hh2 = h / 2 / s;
+      cx = clamp(cx, Math.min(hw2, r.pw / 2), Math.max(r.pw - hw2, r.pw / 2));
+      cy = clamp(cy, Math.min(hh2, r.ph / 2), Math.max(r.ph - hh2, r.ph / 2));
+      view = perspectiveView(w, h, cx, cy, s, pose.yaw, pose.pitch, pose.roll);
+    }
 
     const art = buildArt(rc.brand, rc.assets, {
       content: String(p.content || "mark") as ArtContent,
@@ -258,19 +274,22 @@ export const mockupScene: SceneDef = {
       offsetY: Number(p.offsetY ?? 0) / 100,
     });
 
-    // The logo appears early, then the light keeps moving over it.
+    // The logo appears in the first shot, then the light keeps moving over it.
     const mode = String(p.reveal || "light");
-    let reveal = mode === "none" ? 1 : ease.outCubic(seg(t, 0.25, mode === "light" ? 1.5 : 1.1));
-    if (material === "neon") {
+    const revealEnd = opt.revealTime ?? (style === "cuts" || style === "punch" ? Math.max(0.6, Math.min(1.5, duration * 0.3)) : mode === "light" ? 1.5 : 1.1);
+    const noReveal = mode === "none" || revealEnd <= 0 || !cam.firstShot;
+    let reveal = noReveal ? 1 : ease.outCubic(seg(t, Math.min(0.25, revealEnd * 0.2), revealEnd));
+    if (material === "neon" && !noReveal) {
       // Neon flickers on.
-      const f = seg(t, 0.2, 1.2);
+      const f = seg(t, Math.min(0.2, revealEnd * 0.15), revealEnd * 0.8);
       reveal = f >= 1 ? 1 : [0.15, 0.32, 0.4, 0.55, 0.62].some((x, i) => f > x && f < x + (i % 2 ? 0.06 : 0.04)) || f > 0.7 ? 1 : 0.08;
-      if (mode === "none") reveal = 1;
     }
     const tone = String(p.foilTone || r.def?.foilTone || "gold");
     const [metalA, metalB] = tone === "brand" ? [rgb01(mix(ink, "#000000", 0.55)), rgb01(mix(ink, "#FFFFFF", 0.55))] : METALS[tone] ?? METALS.gold;
     const baseLight = Math.atan2(r.def?.light[1] ?? -0.7, r.def?.light[0] ?? -0.7);
-    const la = baseLight + 0.45 * Math.sin(t * 0.9);
+    // The light follows the camera's swing a little, so foil and bevels glint as it orbits.
+    const la = baseLight + 0.45 * Math.sin(t * 0.9) + pose.yaw * 1.6;
+    const short = Math.min(w, h);
 
     const ok = composite(ctx, w, h, {
       photo: r.photo,
@@ -290,15 +309,19 @@ export const mockupScene: SceneDef = {
       reveal,
       revealMode: mode === "none" ? "fade" : (mode as "fade" | "wipe" | "press" | "light"),
       sweep: p.sweep === false ? 0 : 1,
-      sweepPos: lerp(-0.5, 1.6, k),
+      sweepPos: lerp(-0.5, 1.6, k) + pose.yaw * 0.8,
       metalA,
       metalB,
       dim: material === "neon" ? 0.45 : 0,
       surfaceLum: surface.lum,
+      grade: Number(p.grade ?? 0) / 100,
+      gradeDark: rgb01(mix(rc.colors.black, rc.colors.primary, 0.25)),
+      gradeLight: rgb01(mix(rc.colors.white, rc.colors.primary, 0.35)),
+      blur: [cam.blur[0] * short, cam.blur[1] * short],
+      flash: cam.flash,
     });
     if (!ok) drawFallback(rc, r, view, art.color, reveal);
-  },
-};
+}
 
 /** Without WebGL: the photo plus the logo multiplied on in perspective-free (affine) form. */
 function drawFallback(rc: RenderCtx, r: Resolved, view: Mat3, art: HTMLCanvasElement, alpha: number) {

@@ -4,6 +4,7 @@ import type { BrandAssets } from "./kit";
 import { ASPECTS, buildTimeline, renderFrame, seekVideosExact } from "./renderer";
 import { SAMPLE_RATE, renderSoundtrack } from "../audio/engine";
 import { preloadProjectMockups } from "../mockup/library";
+import { preloadVideoMockups } from "../scenes/videoMockup";
 
 /** AAC plays everywhere; Opus-in-MP4 is the fallback where the browser can't encode AAC. */
 async function pickAudioCodec(): Promise<{ codec: string; mux: "aac" | "opus" } | null> {
@@ -83,6 +84,7 @@ export async function exportVideo(project: Project, assets: BrandAssets, opts: E
   const { total } = buildTimeline(project);
   if (total <= 0) throw new Error("Turn on at least one scene first.");
   await preloadProjectMockups(project);
+  await preloadVideoMockups(project.scenes.filter((s) => s.enabled && s.type === "videomockup").map((s) => String(s.params.base)));
 
   const canvas = document.createElement("canvas");
   canvas.width = width;
