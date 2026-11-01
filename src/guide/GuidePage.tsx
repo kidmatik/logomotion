@@ -617,8 +617,8 @@ const EXAMPLES: { type: string; key: string; aspect: Aspect }[] = [
   { type: "icon", key: "exIcon", aspect: "1:1" },
   { type: "phone", key: "exPhone", aspect: "1:1" },
   { type: "browser", key: "exBrowser", aspect: "16:9" },
-  { type: "social", key: "exSocial", aspect: "4:5" },
-  { type: "mockup", key: "exMockup", aspect: "4:5" },
+  { type: "social", key: "exSocial", aspect: "1:1" },
+  { type: "mockup", key: "exMockup", aspect: "1:1" },
   { type: "pattern", key: "exPattern", aspect: "16:9" },
   { type: "palette", key: "exPalette", aspect: "1:1" },
   { type: "signoff", key: "exSign", aspect: "1:1" },
@@ -642,7 +642,6 @@ function Examples({ project, assets, t }: GuidePageProps) {
 
 const FORMATS: { key: string; aspect: Aspect; size: string; type: string; round?: boolean }[] = [
   { key: "fPost", aspect: "1:1", size: "1080 × 1080", type: "reveal" },
-  { key: "fPortrait", aspect: "4:5", size: "1080 × 1350", type: "signoff" },
   { key: "fStory", aspect: "9:16", size: "1080 × 1920", type: "reveal" },
   { key: "fVideo", aspect: "16:9", size: "1920 × 1080", type: "signoff" },
   { key: "fAvatar", aspect: "1:1", size: "1080 × 1080", type: "icon", round: true },

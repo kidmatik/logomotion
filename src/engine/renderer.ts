@@ -9,7 +9,6 @@ export const ASPECTS: Record<Aspect, { w: number; h: number; label: string }> = 
   "16:9": { w: 1920, h: 1080, label: "16:9" },
   "9:16": { w: 1080, h: 1920, label: "9:16" },
   "1:1": { w: 1080, h: 1080, label: "1:1" },
-  "4:5": { w: 1080, h: 1350, label: "4:5" },
 };
 
 export interface TimelineEntry {

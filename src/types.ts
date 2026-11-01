@@ -137,7 +137,7 @@ export interface MusicSettings {
   ending: boolean;
 }
 
-export type Aspect = "16:9" | "9:16" | "1:1" | "4:5";
+export type Aspect = "16:9" | "9:16" | "1:1";
 
 export interface Project {
   version: 1;
