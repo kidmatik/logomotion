@@ -16,6 +16,12 @@ import { normalizeHex } from "../brand/color";
 import { resolveColors } from "../engine/kit";
 import { DropZone } from "./DropZone";
 import { useLang } from "../i18n";
+import { LogoSlot } from "./BrandPanel";
+import { ColorSwatch, Select } from "./controls";
+import { HEBREW_FONTS, WEIGHTS } from "../brand/fonts";
+import { PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
+import { isMultiColor } from "../brand/logoImport";
+import type { Store as StoreT } from "../state/store";
 import { Section, Slider, Toggle } from "./controls";
 import { Icon } from "./icons";
 
@@ -106,6 +112,13 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
         </button>
       ) : (
         <>
+      <Section title="Brand basics">
+        <BrandBasics store={store} />
+        <button type="button" className="link-btn" onClick={onBrandTab}>
+          More brand settings (gradients, lettermark, second line)
+        </button>
+      </Section>
+
       <Section title="Start from">
         <div className="guide-sources">
           <DropZone accept="application/pdf,.pdf" onFiles={importPdf} className="guide-source">
@@ -174,6 +187,7 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
 
       {picked === "hero" && (
         <Section title="Cover" aside={auto("intro")}>
+          <BrandBasics store={store} parts={["name"]} />
           <TextArea value={guide.intro} onChange={(v) => set("intro", { intro: v }, "guide-intro")} />
           <Ideas list={ideas.intro} current={[guide.intro]} onPick={(v) => set("intro", { intro: v })} />
           <p className="guide-hint">The page title is set when you publish. The film is the one in the Video view.</p>
@@ -195,9 +209,7 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
 
       {picked === "logo" && (
         <Section title="Logo rules" aside={auto("logo")}>
-          <button type="button" className="ghost-btn small" onClick={onBrandTab}>
-            <Icon.Pen size={14} /> Change the logo
-          </button>
+          <BrandBasics store={store} parts={["logo"]} />
           <Slider label="Clear space (× logo height)" value={guide.logo.clearSpace} min={0.1} max={1.5} step={0.05} onChange={(v) => set("logo", { logo: { ...guide.logo, clearSpace: v } }, "guide-clear")} />
           <Slider label="Minimum width on screen" value={guide.logo.minPx} min={16} max={300} step={2} unit="px" onChange={(v) => set("logo", { logo: { ...guide.logo, minPx: v } }, "guide-minpx")} />
           <Slider label="Minimum width in print" value={guide.logo.minMm} min={5} max={80} step={1} unit="mm" onChange={(v) => set("logo", { logo: { ...guide.logo, minMm: v } }, "guide-minmm")} />
@@ -211,10 +223,13 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
 
       {picked === "color" && (
         <>
-          <Section title="Colour names">
-            <button type="button" className="ghost-btn small" onClick={onBrandTab}>
-              <Icon.Pen size={14} /> Change the colours
+          <Section title="Colours">
+            <BrandBasics store={store} parts={["colors"]} />
+            <button type="button" className="link-btn" onClick={logoColours}>
+              <Icon.Sparkle size={13} /> Take the colours from the logo
             </button>
+          </Section>
+          <Section title="Colour names">
             {(["primary", "secondary", "black", "white"] as ColorRole[]).map((r) => (
               <label key={r} className="guide-color-name">
                 <span style={{ background: c[r] }} />
@@ -246,9 +261,7 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
 
       {picked === "type" && (
         <Section title="Fonts">
-          <button type="button" className="ghost-btn small" onClick={onBrandTab}>
-            <Icon.Pen size={14} /> Change the headline font
-          </button>
+          <BrandBasics store={store} parts={["font"]} />
           <label className="guide-field">
             <span>Body text font</span>
             <select value={guide.bodyFont?.family ?? ""} onChange={(e) => set("bodyFont", { bodyFont: e.target.value ? { family: e.target.value, source: "google", weight: 400 } : null })}>
@@ -278,6 +291,13 @@ export function GuidePanel({ store, picked, onPick, onShare, onBrandTab }: { sto
             <Ideas list={ideas.dont} current={guide.voice.dont} onPick={(v) => set("voice.dont", { voice: { ...guide.voice, dont: [...guide.voice.dont, v] } })} add />
           </Section>
         </>
+      )}
+
+      {picked === "files" && (
+        <Section title="Logo files">
+          <p className="guide-hint">Every file is made from your logo and colours: transparent PNGs, SVG vectors, profile pictures, covers, favicons, email signature, print and slides. Visitors can search by need ("Instagram profile", "dark background") or download everything as a ZIP.</p>
+          <BrandBasics store={store} parts={["logo"]} />
+        </Section>
       )}
 
       {(picked === "motion" || picked === "examples" || picked === "formats") && (
@@ -360,6 +380,76 @@ function ListEditor({ items, onChange, placeholder, chips }: { items: string[]; 
           <Icon.Plus size={14} />
         </button>
       </form>
+    </div>
+  );
+}
+
+const ROLE_LABEL: Record<ColorRole, string> = { primary: "Primary", secondary: "Secondary", black: "Dark", white: "Light" };
+
+/** Logo, name, colours and font, editable right here: fix anything the import got wrong without leaving the page. */
+function BrandBasics({ store, parts = ["logo", "name", "colors", "font"] }: { store: StoreT; parts?: ("logo" | "name" | "colors" | "font")[] }) {
+  const { project, update } = store;
+  const b = project.brand;
+  const c = resolveColors(b);
+  const fonts = [...new Set([b.font.family, ...GOOGLE_FONTS])].map((f) => ({ value: f, label: HEBREW_FONTS.has(f) ? `${f} · עברית` : f }));
+  return (
+    <div className="guide-basics">
+      {parts.includes("logo") && (
+        <>
+          <LogoSlot
+            title="Logo"
+            svg={b.logoSvg}
+            isPlaceholder={b.logoSvg === PLACEHOLDER_LOGO}
+            onSvg={async (svg) => {
+              // Still on the sample colours: the logo's own colours are a better start.
+              const sample = (["primary", "secondary", "black"] as const).every((r) => b.colors[r].toUpperCase() === defaultBrand.colors[r].toUpperCase());
+              const fromLogo = sample ? await colorsFromLogo(svg, b) : null;
+              update((d) => {
+                d.brand.logoSvg = svg;
+                d.brand.logoColorMode = isMultiColor(svg) ? "original" : "primary";
+                if (fromLogo) d.brand = { ...d.brand, ...fromLogo, colors: { ...d.brand.colors, ...(fromLogo.colors ?? {}) } };
+              });
+            }}
+            onClear={() => update((d) => void (d.brand.logoSvg = PLACEHOLDER_LOGO))}
+          />
+          {/<image\b/.test(b.logoSvg) && <p className="guide-warn">This logo is a picture, not a vector. Upload the SVG above for sharp files and real SVG downloads.</p>}
+          <label className="guide-check">
+            <input type="checkbox" checked={b.logoColorMode === "original"} onChange={(e) => update((d) => void (d.brand.logoColorMode = e.target.checked ? "original" : "primary"))} />
+            <span>Keep the logo's own colours</span>
+          </label>
+        </>
+      )}
+      {parts.includes("name") && (
+        <div className="guide-two">
+          <label className="guide-field">
+            <span>Brand name</span>
+            <input className="guide-input" dir="auto" value={b.name} onChange={(e) => update((d) => void (d.brand.name = e.target.value), "name")} />
+          </label>
+          <label className="guide-field">
+            <span>Tagline</span>
+            <input className="guide-input" dir="auto" value={b.tagline} onChange={(e) => update((d) => void (d.brand.tagline = e.target.value), "tagline")} />
+          </label>
+        </div>
+      )}
+      {parts.includes("colors") && (
+        <div className="swatches">
+          {(["primary", "secondary", "black", "white"] as ColorRole[]).map((r) => (
+            <ColorSwatch key={r} label={ROLE_LABEL[r]} value={c[r]} onChange={(hex) => update((d) => void ((d.brand.colors[r] = hex), r === "secondary" && (d.brand.secondaryAuto = false)), "c-" + r)} />
+          ))}
+        </div>
+      )}
+      {parts.includes("font") && (
+        <div className="guide-two">
+          <label className="guide-field">
+            <span>Headline font</span>
+            <Select value={b.font.family} options={fonts} onChange={(family) => update((d) => void (d.brand.font = { ...d.brand.font, family, source: "google" }))} />
+          </label>
+          <label className="guide-field">
+            <span>Weight</span>
+            <Select value={b.font.weight} options={WEIGHTS} onChange={(weight) => update((d) => void (d.brand.font.weight = weight))} />
+          </label>
+        </div>
+      )}
     </div>
   );
 }

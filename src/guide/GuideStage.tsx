@@ -11,7 +11,7 @@ import { emptyGuide, fillGuide } from "./model";
 type Pick = GuideSectionId | "hero";
 
 /** The guidelines page as the editor shows it: a browser frame you can switch between desktop and phone width. */
-export function GuideStage({ project, assets, assetsVersion, picked, onPick }: { project: Project; assets: BrandAssets; assetsVersion: number; picked: Pick | null; onPick: (p: Pick) => void }) {
+export function GuideStage({ project, assets, assetsVersion, picked, onPick, onLogoSvg }: { project: Project; assets: BrandAssets; assetsVersion: number; picked: Pick | null; onPick: (p: Pick) => void; onLogoSvg: (svg: string) => void }) {
   const { t, lang, setLang, dir } = useLang(GUIDE_T);
   const [device, setDevice] = useState<"desktop" | "mobile">("desktop");
   const guide = useMemo(() => fillGuide(project, project.guide ?? emptyGuide(), lang), [project, lang]);
@@ -55,7 +55,7 @@ export function GuideStage({ project, assets, assetsVersion, picked, onPick }: {
       </div>
       <div className={"guide-scroll " + device} ref={scroller}>
         <div className="guide-frame">
-          <GuidePage project={project} guide={guide} assets={assets} assetsVersion={assetsVersion} t={t} lang={lang} dir={dir} onPick={onPick} picked={picked} showAuto />
+          <GuidePage project={project} guide={guide} assets={assets} assetsVersion={assetsVersion} t={t} lang={lang} dir={dir} onPick={onPick} picked={picked} showAuto onLogoSvg={onLogoSvg} />
         </div>
       </div>
       <p className="guide-tip">

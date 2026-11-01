@@ -10,6 +10,7 @@ import { hexToRgb } from "../brand/color";
 export const GUIDE_SECTIONS: { id: GuideSectionId; en: string; he: string; hint: string }[] = [
   { id: "about", en: "The brand", he: "המותג", hint: "Story, values" },
   { id: "logo", en: "Logo", he: "לוגו", hint: "Versions, clear space, misuse" },
+  { id: "files", en: "Logo files", he: "קבצי לוגו", hint: "Downloads for every use" },
   { id: "color", en: "Colour", he: "צבע", hint: "Codes, proportions, contrast" },
   { id: "type", en: "Typography", he: "טיפוגרפיה", hint: "Fonts and type scale" },
   { id: "voice", en: "Voice & tone", he: "טון ושפה", hint: "How the brand speaks" },
@@ -48,8 +49,12 @@ export function normalizeGuide(raw: unknown): BrandGuide | undefined {
   const base = emptyGuide();
   const known = new Set(GUIDE_SECTIONS.map((s) => s.id));
   const sections = (Array.isArray(g.sections) ? g.sections : []).filter((s) => s && known.has(s.id));
-  // Sections added in later versions go to the end, switched on.
-  for (const s of base.sections) if (!sections.some((x) => x.id === s.id)) sections.push(s);
+  // Sections added in later versions go after the one before them in the default order, switched on.
+  base.sections.forEach((s, i) => {
+    if (sections.some((x) => x.id === s.id)) return;
+    const prev = i > 0 ? sections.findIndex((x) => x.id === base.sections[i - 1].id) : -1;
+    sections.splice(prev + 1, 0, s);
+  });
   return {
     ...base,
     ...g,

@@ -115,12 +115,12 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     <AssetsContext.Provider value={assetsValue}>
     <LibraryContext.Provider value={library}>
     <div className="app">
-      <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} onShare={() => setSharing(true)} />
+      <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} onShare={() => (setView("page"), setSharing(true))} />
       <main className="workspace">
         <section className={"stage-col" + (view === "page" ? " page-view" : "")}>
           <ViewSwitch view={view} onChange={setView} />
           {view === "page" ? (
-            <GuideStage project={project} assets={assets} assetsVersion={version} picked={picked} onPick={(id) => (setPicked(id), setTab("page"))} />
+            <GuideStage project={project} assets={assets} assetsVersion={version} picked={picked} onPick={(id) => (setPicked(id), setTab("page"))} onLogoSvg={(svg) => store.update((d) => void (d.brand.logoSvg = svg))} />
           ) : (
             <>
               <div className="stage-card">
@@ -175,8 +175,8 @@ function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => voi
     <div className="view-switch" role="tablist" aria-label="What you're making">
       {(
         [
+          ["page", "Brand guidelines page"],
           ["video", "Video"],
-          ["page", "Guidelines page"],
         ] as [View, string][]
       ).map(([id, label]) => (
         <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? "active" : ""} onClick={() => onChange(id)}>

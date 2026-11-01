@@ -19,6 +19,7 @@ import { PlayerBar, Preview } from "../ui/Preview";
 import { Icon } from "../ui/icons";
 import { SceneLoop, downloadScenePng } from "./SceneLoop";
 import { sectionLabel } from "./model";
+import { GROUPS, LOGO_FILES, NEEDS, fileName, filePng, fileSize, fileSvg, isVector, kitZip, matchNeed, saveBlob, svgDataUrl, type LogoFile } from "./logoKit";
 
 export type TFn = (k: string, v?: Record<string, string | number>) => string;
 
@@ -100,6 +101,8 @@ export interface GuidePageProps {
   picked?: GuideSectionId | "hero" | null;
   /** Mark text written automatically (editor only). */
   showAuto?: boolean;
+  /** Editor only: take a real SVG when the logo is just a picture. */
+  onLogoSvg?: (svg: string) => void;
 }
 
 export function GuidePage(props: GuidePageProps) {
@@ -120,6 +123,7 @@ export function GuidePage(props: GuidePageProps) {
   const body: Record<GuideSectionId, () => ReactNode> = {
     about: () => <About {...props} font={font} brandDir={brandDir} />,
     logo: () => <Logo {...props} fileBase={fileBase} />,
+    files: () => <LogoFiles {...props} />,
     color: () => <Colour {...props} />,
     type: () => <Type {...props} brandDir={brandDir} />,
     voice: () => <Voice {...props} font={font} brandDir={brandDir} />,
@@ -672,6 +676,128 @@ function Formats({ project, assets, t, fileBase }: GuidePageProps & Extra) {
             </figcaption>
           </figure>
         ))}
+      </div>
+    </>
+  );
+}
+
+function LogoFiles({ project, t, lang, onLogoSvg }: GuidePageProps) {
+  const b = project.brand;
+  const he = lang === "he";
+  const [q, setQ] = useState("");
+  const [need, setNeed] = useState<number | null>(null);
+  const [zipping, setZipping] = useState<string | null>(null);
+  const vector = isVector(b.logoSvg);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const previews = useMemo(() => new Map(LOGO_FILES.map((f) => [f.id, fileSvg(f, b)])), [b.logoSvg, b.logoColorMode, b.colors, b.secondaryAuto]);
+  const ids = need !== null ? NEEDS[need].files : q.trim() ? matchNeed(q) : null;
+  const shown = ids ? ids.map((id) => LOGO_FILES.find((f) => f.id === id)!).filter(Boolean) : null;
+
+  const card = (f: LogoFile) => {
+    const svg = previews.get(f.id);
+    const { w, h } = fileSize(f, b);
+    return (
+      <div key={f.id} className="gp-file">
+        <div className={"gp-file-art" + (f.bg === "none" ? " clear" + (f.tone === "light" ? " darkish" : "") : "")}>
+          {svg && <img src={svgDataUrl(svg)} alt="" className={f.round ? "round" : ""} />}
+        </div>
+        <div className="gp-file-info">
+          <strong>{he ? f.he : f.en}</strong>
+          <small>{he ? f.whyHe : f.whyEn}</small>
+          <span className="sp-code" dir="ltr">
+            {w} × {h}
+            {f.bg === "none" ? ` · ${t("transparent")}` : ""}
+          </span>
+        </div>
+        <div className="gp-file-actions" dir="ltr">
+          <button type="button" className="ghost-btn small" onClick={(e) => (e.stopPropagation(), filePng(f, b).then((blob) => blob && saveBlob(fileName(f, b, "png"), blob)))}>
+            <Icon.Download size={13} /> PNG
+          </button>
+          {vector && svg && (
+            <button type="button" className="ghost-btn small" onClick={(e) => (e.stopPropagation(), saveBlob(fileName(f, b, "svg"), new Blob([svg], { type: "image/svg+xml" })))}>
+              <Icon.Download size={13} /> SVG
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <>
+      <p className="gp-p">{t("filesLead")}</p>
+      {!vector && (
+        <div className="gp-novector">
+          <span>{onLogoSvg ? t("noVectorEditor") : t("noVector")}</span>
+          {onLogoSvg && (
+            <label className="ghost-btn small" onClick={(e) => e.stopPropagation()}>
+              <Icon.Upload size={13} /> {t("uploadSvg")}
+              <input
+                type="file"
+                accept=".svg,image/svg+xml"
+                hidden
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (file) onLogoSvg(await file.text());
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+        </div>
+      )}
+      <div className="gp-need" onClick={(e) => e.stopPropagation()}>
+        <div className="gp-need-search">
+          <Icon.Search size={16} />
+          <input
+            value={q}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setNeed(null);
+            }}
+            placeholder={t("needPlaceholder")}
+            aria-label={t("needPlaceholder")}
+          />
+        </div>
+        <div className="gp-need-chips">
+          <button type="button" className={need === null && !q ? "active" : ""} onClick={() => (setNeed(null), setQ(""))}>
+            {t("allFiles")}
+          </button>
+          {NEEDS.map((n, i) => (
+            <button key={n.en} type="button" className={need === i ? "active" : ""} onClick={() => (setNeed(need === i ? null : i), setQ(""))}>
+              {he ? n.he : n.en}
+            </button>
+          ))}
+        </div>
+      </div>
+      {shown ? (
+        shown.length ? (
+          <div className="gp-files">{shown.map(card)}</div>
+        ) : (
+          <p className="gp-p">{t("noMatch")}</p>
+        )
+      ) : (
+        GROUPS.map((g) => (
+          <div key={g.id} className="gp-file-group">
+            <h3 className="gp-h3">{he ? g.he : g.en}</h3>
+            <div className="gp-files">{LOGO_FILES.filter((f) => f.group === g.id).map(card)}</div>
+          </div>
+        ))
+      )}
+      <div className="sp-actions">
+        <button
+          type="button"
+          className="ghost-btn"
+          disabled={!!zipping}
+          onClick={async (e) => {
+            e.stopPropagation();
+            const blob = await kitZip(b, (n, total) => setZipping(t("zipping", { n, total })));
+            setZipping(null);
+            saveBlob(`${(b.name || "brand").toLowerCase().replace(/[^\w\u0590-\u05FF]+/g, "-")}-logo-kit.zip`, blob);
+          }}
+        >
+          <Icon.Download size={15} /> {zipping ?? t("downloadAll")}
+        </button>
       </div>
     </>
   );

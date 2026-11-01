@@ -156,7 +156,7 @@ export interface Project {
   guide?: BrandGuide;
 }
 
-export type GuideSectionId = "about" | "logo" | "color" | "type" | "voice" | "motion" | "examples" | "formats";
+export type GuideSectionId = "about" | "logo" | "files" | "color" | "type" | "voice" | "motion" | "examples" | "formats";
 
 /**
  * The written part of the brand guidelines page. Everything visual (logo,
