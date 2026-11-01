@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore } from "./state/store";
 import { useAssets } from "./state/useAssets";
 import { clock } from "./state/clock";
-import { TopBar } from "./ui/TopBar";
+import { AspectPicker, TopBar } from "./ui/TopBar";
 import { PlayerBar, Preview, Timeline } from "./ui/Preview";
 import { BrandPanel } from "./ui/BrandPanel";
 import { ScenesPanel } from "./ui/ScenesPanel";
@@ -105,6 +105,7 @@ export default function App({ initial, persist }: { initial: Project; persist: (
             <Preview project={project} assets={assets} assetsVersion={version} />
             <PlayerBar project={project} />
           </div>
+          <AspectPicker store={store} className="stage-aspect" />
           <Timeline project={project} />
           <p className="template-note">{templateById(project.template).description}</p>
         </section>

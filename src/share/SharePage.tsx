@@ -9,6 +9,7 @@ import { sceneDef } from "../scenes/registry";
 import { brandIsRtl, resolveColors } from "../engine/kit";
 import { hexToRgb, contrast } from "../brand/color";
 import { prepareSvg } from "../brand/logo";
+import { tinted } from "../brand/logoUrl";
 import { ensureGoogleFont, weightLabel } from "../brand/fonts";
 import { clock, useClock } from "../state/clock";
 import { music } from "../audio/engine";
@@ -113,28 +114,6 @@ const NAME_KEY = "logomotion.reviewer";
 
 function fmt(t: number) {
   return `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, "0")}`;
-}
-
-function svgUrl(svg: string) {
-  const p = prepareSvg(svg);
-  return p.ok && p.svg ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(p.svg) : "";
-}
-
-function tinted(svg: string, color: string | null) {
-  if (!color) return svgUrl(svg);
-  const p = prepareSvg(svg);
-  if (!p.ok || !p.svg) return "";
-  // Recolour every shape for the logo tiles (bitmap logos keep their own colours).
-  const doc = new DOMParser().parseFromString(p.svg, "image/svg+xml");
-  if (doc.querySelector("image")) return svgUrl(svg);
-  doc.querySelectorAll("path, rect, circle, ellipse, polygon, polyline, line, g, svg").forEach((el) => {
-    if (el.closest("mask")) return;
-    if (el.getAttribute("fill") !== "none") el.setAttribute("fill", color);
-    if (el.getAttribute("stroke") && el.getAttribute("stroke") !== "none") el.setAttribute("stroke", color);
-    el.removeAttribute("style");
-  });
-  doc.querySelectorAll("style").forEach((s) => s.remove());
-  return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(new XMLSerializer().serializeToString(doc.documentElement));
 }
 
 function download(name: string, text: string, type: string) {

@@ -146,10 +146,19 @@ export function Timeline({ project }: { project: Project }) {
   const { t } = useClock();
   const score = useMemo(() => buildScore(project), [project]);
   const { entries, total } = buildTimeline(project);
+  const row = useRef<HTMLDivElement>(null);
+  const cur = entries.length ? entryAt(entries, t) : -1;
+  // On a phone the blocks scroll sideways: keep the playing scene in view.
+  useEffect(() => {
+    const el = row.current;
+    const block = el?.children[cur] as HTMLElement | undefined;
+    if (!el || !block || el.scrollWidth <= el.clientWidth + 1) return;
+    const left = block.offsetLeft;
+    if (left < el.scrollLeft || left + block.offsetWidth > el.scrollLeft + el.clientWidth) el.scrollTo({ left: left - 12, behavior: "smooth" });
+  }, [cur]);
   if (!entries.length) return <div className="timeline empty">All scenes are switched off. Turn one on in the Scenes tab.</div>;
-  const cur = entryAt(entries, t);
   return (
-    <div className="timeline" role="list">
+    <div className="timeline" role="list" ref={row}>
       {/* Beat markers: where the music hits inside each scene, so you can see the sync. */}
       {entries.map((e, i) => (
         <button
