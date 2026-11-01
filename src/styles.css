@@ -1107,3 +1107,5 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .ob-ask-vector { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .ob-ask-vector > span { flex: 1 1 220px; }
 .ob-ask-vector .dropzone { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; white-space: nowrap; }
+.ob-check { display: inline-block; margin-inline-start: 8px; padding: 1px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; vertical-align: 1px; cursor: help; }
+.ob-logo-tile.on-dark, .ob-word-tile.on-dark { background: #1c1d22; }

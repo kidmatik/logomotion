@@ -45,6 +45,8 @@ const en = {
   logoSmall: "We only found a small version of this logo, so it looks soft when large. Upload the SVG or a big PNG for a sharp video.",
   logoBitmap: "This logo is an image, not a vector, so edges may look soft in the video. Upload the SVG for the sharpest result.",
   uploadSvg: "Upload SVG",
+  checkThis: "Check this",
+  checkHint: "We're less sure about this one. Take a look and change it if needed.",
   sitePartial: "{site} doesn't let automatic visitors in, so we could only get its name and icon, and took the colours from the icon. Check them below, and upload the real logo for the sharpest result.",
   // step 3
   reviewTitle: "Is this your brand?",
@@ -116,6 +118,8 @@ const he: Dict = {
   logoSmall: "מצאנו רק גרסה קטנה של הלוגו, ולכן בגדול הוא נראה רך. העלו SVG או PNG גדול לסרטון חד.",
   logoBitmap: "הלוגו שמצאנו הוא תמונה ולא וקטור, ולכן הקצוות עלולים להיראות רכים בסרטון. העלו SVG לתוצאה הכי חדה.",
   uploadSvg: "העלאת SVG",
+  checkThis: "כדאי לבדוק",
+  checkHint: "פחות בטוחים בזה. כדאי להעיף מבט ולשנות אם צריך.",
   sitePartial: "האתר {site} חוסם מבקרים אוטומטיים, אז הצלחנו לקחת רק את השם והאייקון שלו, והצבעים נלקחו מהאייקון. בדקו אותם למטה, ולתוצאה הכי חדה העלו את הלוגו האמיתי.",
   reviewTitle: "זה המותג שלכם?",
   reviewSub: "לחצו על כל דבר כדי לשנות. הסרטון מתעדכן בזמן אמת.",

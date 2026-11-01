@@ -9,7 +9,7 @@
  * private addresses on every redirect hop.
  */
 import { FetchError, safeFetch, text } from "./_lib/safeFetch.js";
-import { ColorTally, FontTally, GradientTally, LOOKALIKE, assignRoles, readPage, toHex } from "./_lib/brandExtract.js";
+import { ColorTally, FontTally, GradientTally, LOOKALIKE, assignRoles, cssLogos, readPage, toHex } from "./_lib/brandExtract.js";
 
 function json(data: unknown, status = 200, cache = status === 200 ? "public, s-maxage=86400" : "no-store") {
   return new Response(JSON.stringify(data), {
@@ -98,6 +98,7 @@ async function blockedResult(page: URL) {
     fonts: [],
     gradients: [],
     logos: icon ? [icon] : [],
+    confidence: { logo: "low", colors: "low", fonts: "low" },
   };
 }
 
@@ -141,6 +142,18 @@ export async function GET(request: Request) {
         .catch(() => ""),
     ),
   );
+  // Logos set in stylesheets; their addresses are relative to the stylesheet, not the page.
+  const candidates = [...info.logos, ...cssLogos(info.inlineCss)];
+  cssTexts.forEach((css, i) => {
+    for (const c of cssLogos(css)) {
+      try {
+        candidates.push({ ...c, url: new URL(c.url!, new URL(sheets[i], page)).toString() });
+      } catch {
+        /* bad URL */
+      }
+    }
+  });
+  candidates.sort((a, b) => b.score - a.score);
   for (const css of cssTexts) {
     colors.addCss(css);
     fonts.addCss(css);
@@ -151,7 +164,7 @@ export async function GET(request: Request) {
   // Logos: keep the best few distinct ones.
   const logos: NonNullable<Awaited<ReturnType<typeof resolveLogo>>>[] = [];
   const seen = new Set<string>();
-  for (const c of info.logos) {
+  for (const c of candidates) {
     if (logos.length >= MAX_LOGOS) break;
     const key = c.svg ? c.svg.slice(0, 300) : new URL(c.url!, page).toString();
     if (seen.has(key)) continue;
@@ -182,6 +195,15 @@ export async function GET(request: Request) {
 
   const fontsOut = resolved.filter((f, i) => resolved.findIndex((g) => g.family === f.family) === i);
 
+  // How sure we are of each part, so the review screen can ask the user to check the shaky ones.
+  const pageLogo = logos.find((l) => l.from !== "icon" && l.from !== "app icon");
+  const brandVar = /--[\w-]*(primary|brand|accent)[\w-]*\s*:/i.test(info.inlineCss + cssTexts.join(""));
+  const confidence = {
+    logo: pageLogo?.kind === "svg" ? "high" : pageLogo ? "medium" : "low",
+    colors: !roles.primary ? "low" : logos[0]?.kind === "svg" || brandVar || info.themeColor ? "high" : "medium",
+    fonts: !fontsOut.length ? "low" : fontsOut[0].lookalike ? "medium" : "high",
+  };
+
   return json({
     url: page.toString(),
     website: page.hostname.replace(/^www\./, ""),
@@ -202,5 +224,7 @@ export async function GET(request: Request) {
     fonts: fontsOut,
     gradients: gradients.list(),
     logos,
+    textLogo: info.textLogo,
+    confidence,
   });
 }
