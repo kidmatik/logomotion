@@ -7,6 +7,8 @@ import { clamp, type ParamDef, type SceneDef } from "../engine/kit";
 import type { CameraStyle } from "../mockup/camera";
 import { MOCKUPS } from "../mockup/library";
 import { renderMockup } from "./mockup";
+import { studioIndex } from "../mockup/studio";
+import { renderStudioMockup } from "./studioMockup";
 
 const params: ParamDef[] = [
   {
@@ -18,6 +20,7 @@ const params: ParamDef[] = [
       { value: "mix", label: "People and products" },
       { value: "people", label: "People wearing and holding it" },
       { value: "products", label: "Products only" },
+      { value: "studio", label: "Studio mockups (phones, cups, cards)" },
     ],
   },
   {
@@ -66,15 +69,20 @@ const params: ParamDef[] = [
 
 const SHOT_STYLES: CameraStyle[] = ["snap", "snapClose", "snap", "snapLow"];
 
-export function montageList(set: string) {
-  const people = MOCKUPS.filter((m) => m.kind === "people");
-  const products = MOCKUPS.filter((m) => m.kind !== "people");
+type Shot = { kind: "photo" | "studio"; id: string };
+
+export function montageList(set: string): Shot[] {
+  const people: Shot[] = MOCKUPS.filter((m) => m.kind === "people").map((m) => ({ kind: "photo", id: m.id }));
+  const products: Shot[] = MOCKUPS.filter((m) => m.kind !== "people").map((m) => ({ kind: "photo", id: m.id }));
+  const studio: Shot[] = (studioIndex() ?? []).map((m) => ({ kind: "studio", id: m.id }));
   if (set === "people") return people;
   if (set === "products") return products;
-  // Interleave: person, product, person...
-  const out = [];
-  for (let i = 0; i < Math.max(people.length, products.length); i++) {
+  if (set === "studio") return studio.length ? studio : people;
+  // Interleave: person, studio, product, ...
+  const out: Shot[] = [];
+  for (let i = 0; i < Math.max(people.length, products.length, studio.length); i++) {
     if (people[i]) out.push(people[i]);
+    if (studio[i]) out.push(studio[i]);
     if (products[i]) out.push(products[i]);
   }
   return out;
@@ -96,15 +104,17 @@ export const montageScene: SceneDef = {
     const len = duration / n;
     const i = clamp(Math.floor(t / len), 0, n - 1);
     const local = t - i * len;
-    const def = list[i % list.length];
+    const shot = list[i % list.length];
     const style = SHOT_STYLES[i % SHOT_STYLES.length];
-    renderMockup(
+    const cam = { camera: style, mirror: i % 2 ? -1 : 1, revealTime: i === 0 ? Math.min(0.4, len * 0.6) : 0 };
+    if (shot.kind === "studio") renderStudioMockup(rc, local, len, { base: shot.id, fill: "primary", ink: p.ink === "suggested" ? "auto" : p.ink, content: p.content === "lockup" ? "stacked" : p.content, reveal: "fade", grade: p.grade }, cam);
+    else renderMockup(
       rc,
       local,
       len,
       { ...p, material: "suggested", reveal: "fade", sweep: true, size: 100, offsetY: 0, strength: 60 },
-      def.id,
-      { camera: style, mirror: i % 2 ? -1 : 1, revealTime: i === 0 ? Math.min(0.4, len * 0.6) : 0 },
+      shot.id,
+      cam,
     );
     // A quick white pop on each cut.
     if (p.flash !== false && i > 0 && local < 0.05) {

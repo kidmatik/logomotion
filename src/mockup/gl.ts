@@ -410,3 +410,137 @@ export function surfaceStats(photo: CanvasImageSource, pw: number, ph: number, q
   m.set(key, res);
   return res;
 }
+
+/* ---------- plate renderer (studio mockups with the design already composited) ---------- */
+
+const PLATE_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D uEmpty, uFull;
+uniform vec2 uRes, uPhotoSize;
+uniform mat3 uView;
+uniform float uK, uMode, uGrade, uFlash, uSweep, uSweepPos;
+uniform vec3 uGradeDark, uGradeLight;
+out vec4 o;
+float lum(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+void main(){
+  vec2 pix = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  vec3 pv = uView * vec3(pix, 1.);
+  vec2 puv = clamp(pv.xy / pv.z / uPhotoSize, vec2(0.), vec2(1.));
+  vec3 E = texture(uEmpty, puv).rgb, F = texture(uFull, puv).rgb;
+  float show = uK;
+  if (uMode > 0.5) show = smoothstep(puv.x - 0.05, puv.x + 0.05, uK * 1.1 - 0.05);
+  vec3 col = mix(E, F, show);
+  vec2 uv = pix / uRes;
+  float s = exp(-pow((uv.x + uv.y * 0.35 - uSweepPos) * 3.2, 2.)) * uSweep;
+  col += vec3(1., 0.97, 0.92) * s * 0.07;
+  float v = length(uv - 0.5);
+  col *= 1. - 0.16 * v * v;
+  if (uGrade > 0.001) {
+    float l = lum(col);
+    vec3 toned = mix(uGradeDark, uGradeLight, smoothstep(0.0, 1.0, l)) * (0.35 + 0.9 * l);
+    vec3 split = col + (mix(uGradeDark, uGradeLight, l) - 0.5) * 0.35;
+    col = mix(col, mix(split, toned, 0.45), uGrade);
+  }
+  o = vec4(mix(col, vec3(1.), uFlash), 1.);
+}`;
+
+interface PlateGL {
+  canvas: HTMLCanvasElement;
+  gl: WebGL2RenderingContext;
+  loc: Record<string, WebGLUniformLocation | null>;
+  tex: WeakMap<object, WebGLTexture>;
+  /** Composited plates change with every brand edit; keep only the latest few on the GPU. */
+  full: Map<object, WebGLTexture>;
+}
+let plateState: PlateGL | null | undefined;
+
+function initPlate(): PlateGL | null {
+  if (plateState !== undefined) return plateState;
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2", { premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
+    if (!gl) return (plateState = null);
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, PLATE_FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) ?? "link error");
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const p = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(p);
+    gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+    const names = ["uEmpty", "uFull", "uRes", "uPhotoSize", "uView", "uK", "uMode", "uGrade", "uFlash", "uSweep", "uSweepPos", "uGradeDark", "uGradeLight"];
+    const loc = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(prog, n)]));
+    gl.uniform1i(loc.uEmpty, 0);
+    gl.uniform1i(loc.uFull, 1);
+    plateState = { canvas, gl, loc, tex: new WeakMap(), full: new Map() };
+  } catch (err) {
+    console.error("Plate renderer unavailable", err);
+    plateState = null;
+  }
+  return plateState;
+}
+
+export interface PlateInput {
+  empty: TexImageSource;
+  full: TexImageSource;
+  photoW: number;
+  photoH: number;
+  view: Mat3;
+  /** 0..1 how far the design has appeared, and how (0 fade, 1 wipe). */
+  reveal: number;
+  mode: number;
+  sweep: number;
+  sweepPos: number;
+  grade?: number;
+  gradeDark?: [number, number, number];
+  gradeLight?: [number, number, number];
+  blur?: [number, number];
+  flash?: number;
+}
+
+export function drawPlate(ctx: CanvasRenderingContext2D, w: number, h: number, inp: PlateInput): boolean {
+  const s = initPlate();
+  if (!s) return false;
+  const { gl, loc, canvas } = s;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  gl.viewport(0, 0, w, h);
+  const bind = (unit: number, src: TexImageSource) => {
+    let t = s.tex.get(src as object);
+    if (!t) s.tex.set(src as object, (t = texture(gl, src, true)));
+    gl.activeTexture(gl.TEXTURE0 + unit);
+    gl.bindTexture(gl.TEXTURE_2D, t);
+  };
+  bind(0, inp.empty);
+  let ft = s.full.get(inp.full as object);
+  if (!ft) {
+    s.full.set(inp.full as object, (ft = texture(gl, inp.full, true)));
+    if (s.full.size > 4) {
+      const [k, old] = s.full.entries().next().value!;
+      gl.deleteTexture(old);
+      s.full.delete(k);
+    }
+  }
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, ft);
+  gl.uniformMatrix3fv(loc.uView, false, colMajor(inp.view));
+  gl.uniform2f(loc.uRes, w, h);
+  gl.uniform2f(loc.uPhotoSize, inp.photoW, inp.photoH);
+  gl.uniform1f(loc.uK, inp.reveal);
+  gl.uniform1f(loc.uMode, inp.mode);
+  gl.uniform1f(loc.uSweep, inp.sweep);
+  gl.uniform1f(loc.uSweepPos, inp.sweepPos);
+  gl.uniform1f(loc.uGrade, inp.grade ?? 0);
+  gl.uniform3fv(loc.uGradeDark, inp.gradeDark ?? [0, 0, 0]);
+  gl.uniform3fv(loc.uGradeLight, inp.gradeLight ?? [1, 1, 1]);
+  gl.uniform1f(loc.uFlash, inp.flash ?? 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  drawBlurred(ctx, canvas, w, h, inp.blur);
+  return true;
+}

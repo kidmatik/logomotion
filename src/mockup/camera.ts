@@ -198,3 +198,38 @@ export function covers(view: Mat3, w: number, h: number, pw: number, ph: number)
     return x >= 0 && y >= 0 && x <= pw && y <= ph;
   });
 }
+
+/**
+ * Place the camera for a pose: wide framing on `wide`, close framing filling
+ * ~45% of the frame with the target box, then zoom until no photo edge shows.
+ */
+export function frameView(
+  w: number,
+  h: number,
+  pw: number,
+  ph: number,
+  pose: Pose,
+  wide: [number, number],
+  target: { cx: number; cy: number; w: number; h: number },
+): Mat3 {
+  const cover = Math.max(w / pw, h / ph);
+  const zClose = Math.max(1, 0.45 * Math.min(w / (target.w * cover), h / (target.h * cover)));
+  let s = cover * lerp(1, zClose, pose.close) * pose.zoom;
+  const fx = lerp(wide[0], target.cx, pose.close), fy = lerp(wide[1], target.cy, pose.close);
+  const place = () => {
+    const hw = w / 2 / s, hh = h / 2 / s;
+    let cx = fx + pose.dx * hw, cy = fy + pose.dy * hh;
+    const lw = target.w / 2, lh = target.h / 2;
+    if (hw > lw * 1.1) cx = clamp(cx, target.cx + lw * 1.1 - hw, target.cx - lw * 1.1 + hw);
+    if (hh > lh * 1.1) cy = clamp(cy, target.cy + lh * 1.1 - hh, target.cy - lh * 1.1 + hh);
+    cx = clamp(cx, Math.min(hw, pw / 2), Math.max(pw - hw, pw / 2));
+    cy = clamp(cy, Math.min(hh, ph / 2), Math.max(ph - hh, ph / 2));
+    return perspectiveView(w, h, cx, cy, s, pose.yaw, pose.pitch, pose.roll);
+  };
+  let view = place();
+  for (let i = 0; i < 30 && !covers(view, w, h, pw, ph); i++) {
+    s *= 1.035;
+    view = place();
+  }
+  return view;
+}

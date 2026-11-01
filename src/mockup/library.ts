@@ -6,6 +6,7 @@
  */
 import type { Quad } from "./geometry";
 import type { Project } from "../types";
+import { onStudioAsset, preloadStudio } from "./studio";
 
 export type MaterialId = "print" | "emboss" | "deboss" | "foil" | "spotuv" | "neon" | "embroidery" | "engrave";
 
@@ -257,7 +258,11 @@ const listeners = new Set<() => void>();
 /** Subscribe to "a mockup photo finished loading" so the preview can redraw. */
 export function onMockupAsset(fn: () => void) {
   listeners.add(fn);
-  return () => void listeners.delete(fn);
+  const off = onStudioAsset(fn);
+  return () => {
+    listeners.delete(fn);
+    off();
+  };
 }
 
 /** The photo if it is ready; starts loading it otherwise. */
@@ -299,5 +304,7 @@ export function preloadProjectMockups(project: Project) {
     .filter((x): x is string => !!x);
   // The montage cuts across the whole pack.
   if (on.some((s) => s.type === "montage")) srcs.push(...MOCKUPS.map((m) => m.src));
-  return preloadMockupPhotos([...new Set(srcs)]);
+  const studio = on.filter((s) => s.type === "studio").map((s) => String(s.params.base));
+  if (on.some((s) => s.type === "montage")) studio.push("*");
+  return Promise.all([preloadMockupPhotos([...new Set(srcs)]), studio.length ? preloadStudio(studio) : null]);
 }
