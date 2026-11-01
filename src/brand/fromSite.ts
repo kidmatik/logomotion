@@ -26,7 +26,13 @@ export interface SiteBrand {
   fonts: { family: string; original: string; google: boolean; lookalike: boolean }[];
   logos: SiteLogo[];
   gradients?: { type: "linear" | "radial"; angle: number; stops: string[] }[];
+  /** The site writes its name as styled text in the header ("Matan."). */
+  textLogo?: string;
+  /** How sure the reader is of each part. */
+  confidence?: { logo: Confidence; colors: Confidence; fonts: Confidence };
 }
+
+export type Confidence = "high" | "medium" | "low";
 
 /** A logo option ready for the brand kit. */
 export interface LogoOption {
@@ -38,7 +44,51 @@ export interface LogoOption {
   small?: boolean;
   /** The site's icon (favicon, touch icon) rather than the logo shown on the page. */
   icon?: boolean;
+  /** Width / height. Wide (2.2+) is a wordmark or a lockup; about square is a symbol. */
+  aspect?: number;
+  /** Mostly white: made for dark backgrounds, so it disappears on light ones. */
+  light?: boolean;
   label: string;
+}
+
+/** Shape and brightness of a logo, read by drawing it small. */
+async function logoLooks(svg: string): Promise<{ aspect: number; light: boolean } | null> {
+  const img = await new Promise<HTMLImageElement | null>((resolve) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => resolve(null);
+    i.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  });
+  if (!img) return null;
+  const vb = svg.match(/viewBox="\s*[-\d.]+[\s,]+[-\d.]+[\s,]+([\d.]+)[\s,]+([\d.]+)/);
+  const w = vb ? Number(vb[1]) : img.naturalWidth || 1;
+  const h = vb ? Number(vb[2]) : img.naturalHeight || 1;
+  const S = 96;
+  const cw = Math.max(1, Math.round(w >= h ? S : (S * w) / h));
+  const ch = Math.max(1, Math.round(h >= w ? S : (S * h) / w));
+  const c = document.createElement("canvas");
+  c.width = cw;
+  c.height = ch;
+  const g = c.getContext("2d", { willReadFrequently: true });
+  if (!g) return null;
+  g.drawImage(img, 0, 0, cw, ch);
+  const px = g.getImageData(0, 0, cw, ch).data;
+  // Trim to what's drawn, so padding doesn't change the shape.
+  let x0 = cw, y0 = ch, x1 = -1, y1 = -1, n = 0, lum = 0;
+  for (let y = 0; y < ch; y++) {
+    for (let x = 0; x < cw; x++) {
+      const i = (y * cw + x) * 4;
+      if (px[i + 3] < 100) continue;
+      n++;
+      lum += 0.2126 * px[i] + 0.7152 * px[i + 1] + 0.0722 * px[i + 2];
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (!n) return { aspect: w / h, light: false };
+  return { aspect: (x1 - x0 + 1) / (y1 - y0 + 1), light: lum / n > 225 };
 }
 
 // Hebrew keyboard layout -> the English key in the same place.
@@ -155,20 +205,46 @@ export async function logoOptions(site: SiteBrand): Promise<LogoOption[]> {
       if (r) out.push({ id: `site-${i}`, svg: r.svg, original: true, small: r.small, icon: /icon/.test(l.from), label: l.from === "app icon" ? "App icon" : "From your site" });
     }
   }
+  for (const o of out) {
+    const look = await logoLooks(o.svg).catch(() => null);
+    if (look) Object.assign(o, look);
+  }
   // The site's real logo (header, home link, structured data) before its icon, which is often
-  // just the symbol or a tiny square; within each, vectors first since they stay sharp.
-  const rank = (o: LogoOption) => (o.icon ? 2 : 0) + (/<image\b/.test(o.svg) ? 1 : 0);
+  // just the symbol or a tiny square; a white logo (made for dark headers) after one that shows
+  // on light backgrounds; within each, vectors first since they stay sharp.
+  const rank = (o: LogoOption) => (o.icon ? 4 : 0) + (o.light ? 2 : 0) + (/<image\b/.test(o.svg) ? 1 : 0);
   out.sort((a, b) => rank(a) - rank(b));
   // Drop exact duplicates (sites often repeat the header logo in the footer).
   return out.filter((o, i) => out.findIndex((p) => p.svg === o.svg) === i);
 }
 
+/** A wide logo (wordmark or lockup) has the name in it already. */
+export const isWide = (o: LogoOption | undefined) => !!o && (o.aspect ?? 1) >= 2.2;
+
+/**
+ * Split the site's logos into the brand kit's two slots, like a brand book does:
+ * the symbol (square-ish) is the logo, and a wide wordmark replaces the typed name.
+ * With only a wide logo it stays the logo and the name is typed as before.
+ */
+export function pickLogoSlots(logos: LogoOption[]): { logo: LogoOption | undefined; wordmark: LogoOption | undefined } {
+  const best = logos[0];
+  if (!isWide(best)) return { logo: best, wordmark: undefined };
+  const symbol = logos.find((o) => !isWide(o) && (o.aspect ?? 1) <= 1.6 && !o.light && !o.small);
+  return symbol ? { logo: symbol, wordmark: best } : { logo: best, wordmark: undefined };
+}
+
+const squashName = (s: string) => s.toLowerCase().replace(/[^a-z0-9\u0590-\u05ff]/g, "");
+
 /** The brand kit fields a site fills in. Missing values keep what's there now. */
 export function brandFromSite(site: SiteBrand, current: BrandKit): Partial<BrandKit> {
   const c = site.colors;
   const font = site.fonts[0];
+  // The header's styled text ("Matan.") is how the brand writes its own name; use it when it's the same name.
+  const tl = site.textLogo && squashName(site.textLogo);
+  const sn = squashName(site.name);
+  const name = tl && sn && (sn.includes(tl) || tl.includes(sn)) ? site.textLogo! : site.name;
   const patch: Partial<BrandKit> = {
-    name: site.name || current.name,
+    name: name || current.name,
     nameLine2: "",
     tagline: site.tagline || current.tagline,
     website: site.website || current.website,

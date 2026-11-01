@@ -1368,3 +1368,5 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .guide-input { font: inherit; font-size: 13.5px; padding: 8px 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--field); color: var(--ink); min-width: 0; }
 .guide-warn { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--warn-ink, #8a5a00); background: color-mix(in srgb, #ffb020 14%, transparent); padding: 8px 10px; border-radius: 9px; }
 .guide-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
+.ob-check { display: inline-block; margin-inline-start: 8px; padding: 1px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; vertical-align: 1px; cursor: help; }
+.ob-logo-tile.on-dark, .ob-word-tile.on-dark { background: #1c1d22; }

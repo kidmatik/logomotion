@@ -297,6 +297,17 @@ export const LOOKALIKE: Record<string, string> = {
   "narkis": "Assistant", "simpler": "Assistant", "fb": "Heebo",
 };
 
+/** Logos drawn by stylesheet rules on a "logo" class: `.site-logo { background-image: url(logo.svg) }`. */
+export function cssLogos(css: string): LogoCandidate[] {
+  const out: LogoCandidate[] = [];
+  for (const m of css.matchAll(/([^{}]*)\{([^}]*)\}/g)) {
+    if (!/logo|brand/i.test(m[1]) || /client|partner|customer|sponsor|footer/i.test(m[1])) continue;
+    const u = m[2].match(/(?:background(?:-image)?|mask(?:-image)?|-webkit-mask(?:-image)?)\s*:[^;]*url\(["']?([^"')]+)/i);
+    if (u && !u[1].startsWith("data:image/gif") && !u[1].startsWith("#")) out.push({ score: /\.svg(\?|$)/i.test(u[1]) ? 6 : 5, url: u[1], from: "page" });
+  }
+  return out.slice(0, 3);
+}
+
 /* ---------------- page ---------------- */
 
 export interface LogoCandidate {
@@ -318,12 +329,15 @@ export interface PageInfo {
   stylesheets: string[];
   logos: LogoCandidate[];
   inlineCss: string;
+  /** The header's home link when it's plain styled text ("Matan."): a typed wordmark. */
+  textLogo: string;
 }
 
 function attrs(el: HTMLElement | null, depth = 3) {
   let s = "";
   for (let e: HTMLElement | null = el, i = 0; e && i < depth; e = e.parentNode as HTMLElement | null, i++) {
-    s += ` ${e.getAttribute?.("class") ?? ""} ${e.getAttribute?.("id") ?? ""} ${e.getAttribute?.("aria-label") ?? ""} ${e.getAttribute?.("alt") ?? ""}`;
+    // data-framer-name: Framer names its layers ("Logo", "Nav") and keeps the name on the element.
+    s += ` ${e.getAttribute?.("class") ?? ""} ${e.getAttribute?.("id") ?? ""} ${e.getAttribute?.("aria-label") ?? ""} ${e.getAttribute?.("alt") ?? ""} ${e.getAttribute?.("data-framer-name") ?? ""} ${e.getAttribute?.("title") ?? ""}`;
   }
   return s.toLowerCase();
 }
@@ -487,10 +501,17 @@ export function readPage(html: string, page: URL): PageInfo {
     if (inLogoWall(img)) score -= 7;
     if (/\.svg(\?|$)/i.test(src)) score += 1;
     // A picture in the page body without "logo" anywhere on it is content (a hero shot, a screenshot), not the logo.
-    const inHeader = !!closest(img, (e) => /^(header|nav)$/i.test(e.tagName) || /header|navbar/.test(attrs(e, 1)));
+    const inHeader = !!closest(img, (e) => /^(header|nav)$/i.test(e.tagName) || /header|navbar/.test(attrs(e, 1))) || isHomeLink(img.closest("a") as HTMLElement | null, page);
     if (!/logo|brand|wordmark/.test(label) && !inHeader) return;
     if (score >= 5) logos.push({ score, url: src, from: "page" });
   });
+
+  // Logos drawn with CSS (background-image or mask on a "logo" element), common on Webflow and Wix.
+  for (const el of root.querySelectorAll("[style]")) {
+    const style = el.getAttribute("style") ?? "";
+    const m = style.match(/(?:background(?:-image)?|mask(?:-image)?|-webkit-mask(?:-image)?)\s*:[^;]*url\(["']?([^"')]+)/i);
+    if (m && /logo|brand/.test(attrs(el as unknown as HTMLElement, 2)) && !m[1].startsWith("data:image/gif")) logos.push({ score: /\.svg(\?|$)/i.test(m[1]) ? 7 : 6, url: m[1], from: "page" });
+  }
 
   for (const l of root.querySelectorAll("link[rel]")) {
     const rel = (l.getAttribute("rel") ?? "").toLowerCase();
@@ -502,6 +523,18 @@ export function readPage(html: string, page: URL): PageInfo {
     else if (rel.includes("apple-touch-icon")) logos.push({ score: 1, url: href, from: "app icon" });
   }
 
+  // A home link in the header that holds only short text is the site's typed wordmark.
+  let textLogo = "";
+  for (const a of root.querySelectorAll("a[href]")) {
+    if (!isHomeLink(a as unknown as HTMLElement, page) || a.querySelector("img, svg, picture")) continue;
+    if (!closest(a as unknown as HTMLElement, (e) => /^(header|nav)$/i.test(e.tagName) || /header|navbar|nav\b|logo/.test(attrs(e, 1)), 6) && !/logo|brand/.test(attrs(a as unknown as HTMLElement, 2))) continue;
+    const text = a.text.replace(/\s+/g, " ").trim();
+    if (text.length >= 2 && text.length <= 24 && !/^(home|בית|ראשי|start)$/i.test(text)) {
+      textLogo = text;
+      break;
+    }
+  }
+
   logos.sort((a, b) => b.score - a.score);
-  return { name, tagline, description, lang, rtl, themeColor, handle, stylesheets, logos, inlineCss };
+  return { name, tagline, description, lang, rtl, themeColor, handle, stylesheets, logos, inlineCss, textLogo };
 }

@@ -10,7 +10,7 @@ import { prepareSvg } from "../brand/logo";
 import { svgUrl, tinted } from "../brand/logoUrl";
 import { bitmapToSvg, isMultiColor } from "../brand/logoImport";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
-import { brandFromSite, fillColorsFromIcon, preferLogoColors, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
+import { brandFromSite, fillColorsFromIcon, isWide, pickLogoSlots, preferLogoColors, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
 import { HEBREW_FONTS, ensureGoogleFont } from "../brand/fonts";
 import { isRtlText } from "../engine/kit";
 import { normalizeHex } from "../brand/color";
@@ -253,7 +253,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
       setSiteLogos(logos);
       setDraft((d) => {
         const patch = brandFromSite(s, d.brand);
-        const logo = logos[0];
+        const { logo, wordmark } = pickLogoSlots(logos);
         return {
           ...d,
           brand: {
@@ -265,9 +265,10 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
               return isRtlText(patch.name ?? "") && !HEBREW_FONTS.has(f.family) && !s.fonts.some((x) => x.family === f.family && !x.lookalike) ? { family: "Heebo", source: "google" as const, weight: f.weight } : f;
             })(),
             logoSvg: logo?.svg ?? PLACEHOLDER_LOGO,
-            logoColorMode: logo?.original ? "original" : "primary",
-            lettermarkSvg: null,
-            useLettermark: false,
+            // A two-colour wordmark keeps its colours too, so the pair matches the site.
+            logoColorMode: logo?.original || wordmark?.original ? "original" : "primary",
+            lettermarkSvg: wordmark?.svg ?? null,
+            useLettermark: !!wordmark,
           },
         };
       });
@@ -508,7 +509,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
               {site?.blocked && <p className="ob-note ob-warn">{t("sitePartial", { site: site.website })}</p>}
 
               <div className="ob-field">
-                <label>{t("logo")}</label>
+                <label>{t("logo")} {!site?.blocked && site?.confidence && site.confidence.logo === "low" && <span className="ob-check" title={t("checkHint")}>{t("checkThis")}</span>}</label>
                 {site && !siteLogos.length && <p className="ob-note">{t("noLogoFound")}</p>}
                 {siteLogos.some((l) => l.id !== "upload" && /<image\b/.test(l.svg) && l.svg === brand.logoSvg) && (
                   <div className="ob-note ob-warn ob-ask-vector">
@@ -523,7 +524,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
                     <button
                       key={l.id}
                       type="button"
-                      className={"ob-logo-tile" + (brand.logoSvg === l.svg ? " active" : "")}
+                      className={"ob-logo-tile" + (brand.logoSvg === l.svg ? " active" : "") + ("light" in l && l.light ? " on-dark" : "")}
                       onClick={() => setBrand({ logoSvg: l.svg, logoColorMode: l.original ? "original" : "primary" })}
                       title={l.label}
                     >
@@ -535,16 +536,16 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
                     <Icon.Upload size={18} />
                   </DropZone>
                 </div>
-                {wordmarks.length > 0 && (
+                {(wordmarks.length > 0 || siteLogos.some(isWide)) && (
                   <div className="ob-logos words">
                     <button type="button" className={"ob-word-tile" + (!brand.useLettermark ? " active" : "")} onClick={() => setBrand({ useLettermark: false })} style={{ fontFamily: `"${brand.font.family}"`, fontWeight: brand.font.weight }}>
                       {brand.name}
                     </button>
-                    {wordmarks.map((w) => (
+                    {[...siteLogos.filter(isWide), ...wordmarks].map((w) => (
                       <button
                         key={w.id}
                         type="button"
-                        className={"ob-word-tile" + (brand.useLettermark && brand.lettermarkSvg === w.svg ? " active" : "")}
+                        className={"ob-word-tile" + (brand.useLettermark && brand.lettermarkSvg === w.svg ? " active" : "") + ("light" in w && w.light ? " on-dark" : "")}
                         onClick={() => setBrand({ lettermarkSvg: w.svg, useLettermark: true })}
                         title={w.label}
                       >
@@ -556,7 +557,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
               </div>
 
               <div className="ob-field">
-                <label>{t("colors")}</label>
+                <label>{t("colors")} {!site?.blocked && site?.confidence && site.confidence.colors !== "high" && <span className="ob-check" title={t("checkHint")}>{t("checkThis")}</span>}</label>
                 <div className="ob-roles">
                   {ROLES.map(({ role: r, key }) => (
                     <button key={r} type="button" className={"ob-role" + (role === r ? " active" : "")} onClick={() => setRole(r)}>
@@ -626,7 +627,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
               </div>
 
               <div className="ob-field">
-                <label>{t("font")}</label>
+                <label>{t("font")} {!site?.blocked && site?.confidence && site.confidence.fonts === "low" && <span className="ob-check" title={t("checkHint")}>{t("checkThis")}</span>}</label>
                 <select className="ob-select" value={brand.font.family} onChange={(e) => setBrand({ font: { ...brand.font, family: e.target.value, source: "google" } })} style={{ fontFamily: `"${brand.font.family}"` }}>
                   {[...new Set([brand.font.family, ...fonts])].map((f) => (
                     <option key={f} value={f}>
