@@ -35,7 +35,8 @@ export function normalizeProject(raw: unknown): Project {
   return {
     version: 1,
     template: p.template ?? base.template,
-    aspect: p.aspect ?? base.aspect,
+    // 4:5 was dropped; older projects open as 9:16.
+    aspect: (p.aspect as string) === "4:5" ? "9:16" : p.aspect ?? base.aspect,
     tempo: { ...base.tempo, ...(p.tempo ?? {}) },
     music: { ...base.music, ...(p.music ?? {}) },
     brand: {

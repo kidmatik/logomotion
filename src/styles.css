@@ -1,7 +1,8 @@
 :root {
-  --accent: #2563eb;
-  --accent-hover: #1d4ed8;
-  --accent-soft: #e5edfd;
+  --accent: #111214;
+  --accent-hover: #2b2d33;
+  --accent-soft: rgba(17, 18, 20, 0.07);
+  --on-accent: #fff;
   --danger: #d92d20;
   --ink: #15161a;
   --ink-2: #4b4e57;
@@ -34,9 +35,10 @@
 
 /* Dark editor theme. Only the studio chrome changes; the video keeps its brand colours. */
 :root[data-theme="dark"] {
-  --accent: #4c8dff;
-  --accent-hover: #6aa1ff;
-  --accent-soft: rgba(76, 141, 255, 0.18);
+  --accent: #f2f3f5;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.12);
+  --on-accent: #111214;
   --danger: #ff6b5e;
   --ink: #eceef2;
   --ink-2: #b4b8c2;
@@ -49,7 +51,7 @@
   --track: #3a3e47;
   --hover: #2c3038;
   --dash: #3a3e47;
-  --drop-hover: rgba(76, 141, 255, 0.06);
+  --drop-hover: rgba(255, 255, 255, 0.05);
   --toggle-off: #3a3e47;
   --muted-icon: #5d626d;
   --overlay: rgba(12, 13, 16, 0.75);
@@ -123,11 +125,11 @@ button:disabled { cursor: default; opacity: 0.45; }
 .segmented button {
   border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; font-size: 13px; font-weight: 500; color: var(--ink-2);
 }
-.segmented button.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); }
+.segmented button.active { background: var(--accent); color: var(--on-accent); box-shadow: 0 2px 8px color-mix(in srgb, var(--accent) 35%, transparent); }
 
 .primary-btn {
   display: inline-flex; align-items: center; gap: 8px; border: 0; border-radius: var(--radius-sm);
-  background: var(--accent); color: #fff; padding: 10px 16px; font-weight: 500; font-size: 14px;
+  background: var(--accent); color: var(--on-accent); padding: 10px 16px; font-weight: 500; font-size: 14px;
   transition: background 0.15s;
 }
 .primary-btn:hover:not(:disabled) { background: var(--accent-hover); }
@@ -428,7 +430,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .picker-sources button { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border: 0; background: none; border-radius: 10px; text-align: left; color: var(--ink); }
 .picker-sources button:hover { background: var(--hover); }
 .picker-sources button.active { background: var(--accent-soft); }
-.picker-sources button.active .ps-icon { background: var(--accent); color: #fff; }
+.picker-sources button.active .ps-icon { background: var(--accent); color: var(--on-accent); }
 .ps-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--field); color: var(--ink-2); flex: none; }
 .ps-text { display: flex; flex-direction: column; min-width: 0; }
 .ps-text strong { font-size: 13.5px; font-weight: 600; }
@@ -456,7 +458,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   background: rgba(255, 255, 255, 0.92); color: #15161a; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2); opacity: 0; transition: opacity 0.15s;
 }
 .tile:hover .tile-check, .tile.picked .tile-check { opacity: 1; }
-.tile.picked .tile-check { background: var(--accent); color: #fff; }
+.tile.picked .tile-check { background: var(--accent); color: var(--on-accent); }
 .tile-credit {
   position: absolute; left: 0; right: 0; bottom: 0; padding: 18px 10px 7px; font-size: 11.5px; color: #fff; text-align: left;
   background: linear-gradient(transparent, rgba(0, 0, 0, 0.6)); opacity: 0; transition: opacity 0.15s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -491,7 +493,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .tl-beats i { position: absolute; bottom: 0; width: 2px; height: 4px; margin-left: -1px; border-radius: 1px; background: var(--ink-3); opacity: 0.55; }
 .tl-beats i.big { height: 7px; width: 3px; background: var(--accent); opacity: 1; }
 .music-hero { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 12px; padding: 14px; margin-bottom: 6px; border-radius: var(--radius); background: var(--field); }
-.music-hero .mh-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent); color: #fff; }
+.music-hero .mh-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; background: var(--accent); color: var(--on-accent); }
 .music-hero strong { font-size: 15px; }
 .music-hero p { margin: 2px 0 0; font-size: 12.5px; color: var(--ink-2); line-height: 1.4; }
 .style-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -503,7 +505,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .style-main small { font-size: 11.5px; line-height: 1.35; color: var(--ink-3); }
 .style-bpm { margin-top: 4px; font-size: 10.5px; font-family: "JetBrains Mono", ui-monospace, monospace; color: var(--ink-3); }
 .style-play { position: absolute; right: 8px; top: 8px; width: 28px; height: 28px; border-radius: 50%; border: 0; display: grid; place-items: center; background: var(--field); color: var(--ink); }
-.style-play:hover, .style-play.playing { background: var(--accent); color: #fff; }
+.style-play:hover, .style-play.playing { background: var(--accent); color: var(--on-accent); }
 .rhythm { display: flex; flex-direction: column; gap: 3px; padding-right: 34px; }
 .rhythm-row { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; }
 .rhythm-row i { height: 6px; border-radius: 2px; background: var(--line); }
@@ -539,7 +541,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .corner-editor { position: relative; border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; background: var(--field); }
 .corner-editor img { display: block; width: 100%; height: auto; pointer-events: none; }
 .corner-editor svg { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
-.corner-editor polygon { fill: rgba(37, 99, 235, 0.18); stroke: var(--accent); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
+.corner-editor polygon { fill: color-mix(in srgb, var(--accent) 18%, transparent); stroke: var(--accent); stroke-width: 0.5; vector-effect: non-scaling-stroke; }
 .corner-editor .corner { position: absolute; width: 18px; height: 18px; margin: -9px 0 0 -9px; padding: 0; border-radius: 50%; border: 2px solid #fff; background: var(--accent); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35); cursor: grab; }
 .corner-editor .corner.active { cursor: grabbing; transform: scale(1.2); }
 .corner-editor .corner:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
@@ -868,10 +870,9 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 /* ---------- Quick start: the way back into onboarding ---------- */
 .quickstart-btn {
   position: relative; isolation: isolate; overflow: hidden; display: inline-flex; align-items: center; gap: 7px; flex: none;
-  height: 38px; padding: 0 14px 0 12px; border: 0; border-radius: 999px; color: #fff; font-size: 13.5px; font-weight: 600; white-space: nowrap;
-  background: linear-gradient(110deg, #2563eb, #7c3aed, #db2777, #f59e0b, #7c3aed, #2563eb);
-  background-size: 300% 100%; animation: qs-flow 6s linear infinite;
-  box-shadow: 0 4px 14px -4px rgba(124, 58, 237, 0.55), inset 0 0 0 1px rgba(255, 255, 255, 0.18);
+  height: 38px; padding: 0 14px 0 12px; border: 0; border-radius: 999px; color: var(--on-accent); font-size: 13.5px; font-weight: 600; white-space: nowrap;
+  background: var(--accent);
+  box-shadow: 0 4px 14px -6px rgba(0, 0, 0, 0.45);
   transition: transform 0.15s, box-shadow 0.15s;
 }
 .quickstart-btn::after {
@@ -880,7 +881,7 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   transform: translateX(-120%); animation: qs-shine 3.2s ease-in-out infinite;
 }
 .quickstart-btn svg { animation: qs-twinkle 3.2s ease-in-out infinite; }
-.quickstart-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 22px -6px rgba(124, 58, 237, 0.7), inset 0 0 0 1px rgba(255, 255, 255, 0.25); }
+.quickstart-btn:hover { transform: translateY(-1px); background: var(--accent-hover); box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.5); }
 .quickstart-btn:active { transform: translateY(0) scale(0.98); }
 @keyframes qs-flow { to { background-position: 300% 0; } }
 @keyframes qs-shine { 0%, 55% { transform: translateX(-120%); } 85%, 100% { transform: translateX(120%); } }

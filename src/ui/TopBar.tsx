@@ -14,7 +14,7 @@ import { needsSignIn, useAccount } from "../cloud/account";
 import { AccountControls } from "./AccountMenu";
 import { ProjectSwitcher } from "./ProjectSwitcher";
 
-const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
+const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1"];
 /** The formats most social and video platforms want, for "Download all formats". */
 const ALL_FORMATS: Aspect[] = ["16:9", "9:16", "1:1"];
 

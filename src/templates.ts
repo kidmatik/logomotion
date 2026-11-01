@@ -52,7 +52,7 @@ export const TEMPLATES: Template[] = [
     id: "brand-reel",
     name: "Brand Reel",
     description: "A fast 16-second vertical reel for LinkedIn and Instagram, cut on the beat.",
-    aspect: "4:5",
+    aspect: "9:16",
     tempo: { bpm: 120, snap: true },
     music: "pulse",
     scenes: build([
