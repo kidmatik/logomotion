@@ -19,8 +19,13 @@ import { Onboarding, isPristine, onboarded, type OnboardingResult } from "./ui/O
 import { capturePage } from "./brand/media";
 import type { Library } from "./state/library";
 import { ShareDialog } from "./ui/ShareDialog";
+import { GuidePanel } from "./ui/GuidePanel";
+import { GuideStage } from "./guide/GuideStage";
+import { emptyGuide } from "./guide/model";
+import type { GuideSectionId } from "./types";
 
-type Tab = "brand" | "scenes" | "media" | "music";
+type Tab = "page" | "brand" | "scenes" | "media" | "music";
+type View = "video" | "page";
 
 /** The editor for one project. `persist` saves it (to this browser for guests, to the account once signed in). */
 export default function App({ initial, persist }: { initial: Project; persist: (p: Project) => void }) {
@@ -28,7 +33,17 @@ export default function App({ initial, persist }: { initial: Project; persist: (
   const account = useAccount();
   const { project, undo, redo } = store;
   const { assets, version, addMediaElement } = useAssets(project);
-  const [tab, setTab] = useState<Tab>("brand");
+  // The project is either a film or a brand guidelines page (which plays the film at the top).
+  const [view, setViewState] = useState<View>(() => (initial.guide ? "page" : "video"));
+  const [tab, setTab] = useState<Tab>(() => (initial.guide ? "page" : "brand"));
+  const [picked, setPicked] = useState<GuideSectionId | "hero" | null>(null);
+  const setView = (v: View) => {
+    setViewState(v);
+    if (v === "page") {
+      if (!store.project.guide) store.update((d) => void (d.guide = emptyGuide()));
+      setTab("page");
+    } else if (tab === "page") setTab("brand");
+  };
   // store.update is stable, so the library only needs building once.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const library = useMemo(() => createLibrary(store, addMediaElement), [store.update, addMediaElement]);
@@ -38,11 +53,13 @@ export default function App({ initial, persist }: { initial: Project; persist: (
   const [sharing, setSharing] = useState(false);
 
   const finishOnboarding = (r: OnboardingResult) => {
-    store.replace(r.project);
+    const page = r.goal === "page";
+    store.replace(page ? { ...r.project, guide: r.project.guide ?? emptyGuide() } : r.project);
     setOnboarding(false);
     clock.seek(0);
     clock.setPlaying(true);
-    if (r.goal === "page") setSharing(true);
+    setViewState(page ? "page" : "video");
+    setTab(page ? "page" : "brand");
     if (r.capture || r.files.length) {
       setNotice(r.capture ? "Capturing your website and adding your files…" : "Adding your files…");
       addMaterials(library, r.capture, r.files)
@@ -100,19 +117,27 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     <div className="app">
       <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} onShare={() => setSharing(true)} />
       <main className="workspace">
-        <section className="stage-col">
-          <div className="stage-card">
-            <Preview project={project} assets={assets} assetsVersion={version} />
-            <PlayerBar project={project} />
-          </div>
-          <AspectPicker store={store} className="stage-aspect" />
-          <Timeline project={project} />
-          <p className="template-note">{templateById(project.template).description}</p>
+        <section className={"stage-col" + (view === "page" ? " page-view" : "")}>
+          <ViewSwitch view={view} onChange={setView} />
+          {view === "page" ? (
+            <GuideStage project={project} assets={assets} assetsVersion={version} picked={picked} onPick={(id) => (setPicked(id), setTab("page"))} />
+          ) : (
+            <>
+              <div className="stage-card">
+                <Preview project={project} assets={assets} assetsVersion={version} />
+                <PlayerBar project={project} />
+              </div>
+              <AspectPicker store={store} className="stage-aspect" />
+              <Timeline project={project} />
+              <p className="template-note">{templateById(project.template).description}</p>
+            </>
+          )}
         </section>
         <aside className="sidebar">
           <nav className="tabs" role="tablist">
             {(
               [
+                ...(view === "page" ? [["page", "Page"]] : []),
                 ["brand", "Brand"],
                 ["scenes", "Scenes"],
                 ["media", "Media"],
@@ -125,6 +150,7 @@ export default function App({ initial, persist }: { initial: Project; persist: (
               </button>
             ))}
           </nav>
+          {tab === "page" && <GuidePanel store={store} picked={picked} onPick={setPicked} onShare={() => setSharing(true)} onBrandTab={() => setTab("brand")} />}
           {tab === "brand" && <BrandPanel store={store} />}
           {tab === "scenes" && <ScenesPanel store={store} />}
           {tab === "media" && <MediaPanel store={store} media={assets.media} />}
@@ -141,6 +167,23 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     </LibraryContext.Provider>
     </AssetsContext.Provider>
     </MediaContext.Provider>
+  );
+}
+
+function ViewSwitch({ view, onChange }: { view: View; onChange: (v: View) => void }) {
+  return (
+    <div className="view-switch" role="tablist" aria-label="What you're making">
+      {(
+        [
+          ["video", "Video"],
+          ["page", "Guidelines page"],
+        ] as [View, string][]
+      ).map(([id, label]) => (
+        <button key={id} type="button" role="tab" aria-selected={view === id} className={view === id ? "active" : ""} onClick={() => onChange(id)}>
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 

@@ -3,6 +3,7 @@ import type { Project, SceneInstance } from "../types";
 import { defaultProject } from "../brand/defaults";
 import { createScene, sceneDef } from "../scenes/registry";
 import { PHOTO_SCENES } from "../scenes/photos";
+import { normalizeGuide } from "../guide/model";
 
 /** Fill in anything missing from an older or hand-edited project file. */
 /**
@@ -45,6 +46,7 @@ export function normalizeProject(raw: unknown): Project {
     },
     media,
     scenes,
+    ...(p.guide ? { guide: normalizeGuide(p.guide) } : {}),
   };
 }
 
