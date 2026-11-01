@@ -41,6 +41,7 @@ const en = {
   namePlaceholder: "Brand name",
   makeLogo: "Make a logo",
   siteFailed: "We couldn't read that site: {msg} You can upload a logo or type the name instead.",
+  siteBlocked: "That website doesn't let automatic visitors in, so we couldn't read it. Upload the logo or type the name instead.",
   // step 3
   reviewTitle: "Is this your brand?",
   reviewSub: "Tap anything to change it. The video on the right updates as you go.",
@@ -107,6 +108,7 @@ const he: Dict = {
   namePlaceholder: "שם המותג",
   makeLogo: "צרו לוגו",
   siteFailed: "לא הצלחנו לקרוא את האתר: {msg} אפשר להעלות לוגו או להקליד את השם.",
+  siteBlocked: "האתר הזה חוסם מבקרים אוטומטיים, אז לא הצלחנו לקרוא אותו. העלו את הלוגו או הקלידו את השם.",
   reviewTitle: "זה המותג שלכם?",
   reviewSub: "לחצו על כל דבר כדי לשנות. הסרטון מתעדכן בזמן אמת.",
   logo: "לוגו",

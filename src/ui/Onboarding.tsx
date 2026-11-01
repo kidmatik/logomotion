@@ -9,7 +9,7 @@ import { PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
 import { prepareSvg } from "../brand/logo";
 import { bitmapToSvg } from "../brand/logoImport";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
-import { brandFromSite, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
+import { brandFromSite, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
 import { HEBREW_FONTS, ensureGoogleFont } from "../brand/fonts";
 import { isRtlText } from "../engine/kit";
 import { normalizeHex } from "../brand/color";
@@ -201,7 +201,8 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
       });
       setStep(2);
     } catch (e) {
-      setError(t("siteFailed", { msg: (e as Error).message }));
+      const msg = (e as Error).message;
+      setError(/automatic visitors/.test(msg) ? t("siteBlocked") : t("siteFailed", { msg }));
     } finally {
       setBusy(false);
     }
@@ -339,7 +340,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
                 }}
               >
                 <Icon.Link size={20} />
-                <input dir="ltr" autoFocus value={url} onChange={(e) => setUrl(e.target.value)} placeholder={t("urlPlaceholder")} aria-label={t("website")} inputMode="url" />
+                <input dir="ltr" autoFocus value={url} onChange={(e) => setUrl(fixAddressLayout(e.target.value))} placeholder={t("urlPlaceholder")} aria-label={t("website")} inputMode="url" />
                 <button type="submit" className="primary-btn" disabled={busy || !url.trim()}>
                   {busy ? t("reading") : t("read")}
                 </button>
