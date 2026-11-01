@@ -19,6 +19,8 @@ import { Onboarding, isPristine, onboarded, type OnboardingResult } from "./ui/O
 import { capturePage } from "./brand/media";
 import type { Library } from "./state/library";
 import { ShareDialog } from "./ui/ShareDialog";
+import { GuidelinesAsset } from "./ui/GuidelinesAsset";
+import { Section } from "./ui/controls";
 import { GuidePanel } from "./ui/GuidePanel";
 import { GuideStage } from "./guide/GuideStage";
 import { emptyGuide } from "./guide/model";
@@ -51,6 +53,7 @@ export default function App({ initial, persist }: { initial: Project; persist: (
   const [onboarding, setOnboarding] = useState(() => !onboarded() && isPristine(initial));
   const [notice, setNotice] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [shareRefresh, setShareRefresh] = useState(0);
 
   const finishOnboarding = (r: OnboardingResult) => {
     const page = r.goal === "page";
@@ -151,13 +154,22 @@ export default function App({ initial, persist }: { initial: Project; persist: (
             ))}
           </nav>
           {tab === "page" && <GuidePanel store={store} picked={picked} onPick={setPicked} onShare={() => setSharing(true)} onBrandTab={() => setTab("brand")} />}
-          {tab === "brand" && <BrandPanel store={store} />}
+          {tab === "brand" && (
+            <BrandPanel
+              store={store}
+              top={
+                <Section title="Brand guidelines">
+                  <GuidelinesAsset project={project} assets={assets} refreshKey={shareRefresh} onEdit={() => setView("page")} onShare={() => (setView("page"), setSharing(true))} />
+                </Section>
+              }
+            />
+          )}
           {tab === "scenes" && <ScenesPanel store={store} />}
           {tab === "media" && <MediaPanel store={store} media={assets.media} />}
           {tab === "music" && <MusicPanel store={store} />}
         </aside>
       </main>
-      {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
+      {sharing && <ShareDialog project={project} onClose={() => (setSharing(false), setShareRefresh((n) => n + 1))} />}
       {notice && (
         <div className="toast" role="status" onClick={() => setNotice(null)}>
           {notice}

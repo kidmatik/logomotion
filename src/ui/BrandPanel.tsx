@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { Store } from "../state/store";
 import { DEFAULT_BLACK, DEFAULT_WHITE, PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
 import { GOOGLE_FONTS, HEBREW_FONTS, WEIGHTS, registerUploadedFont } from "../brand/fonts";
@@ -68,7 +68,7 @@ export function LogoSlot({
   );
 }
 
-export function BrandPanel({ store }: { store: Store }) {
+export function BrandPanel({ store, top }: { store: Store; top?: ReactNode }) {
   const { project, update } = store;
   const b = project.brand;
   const colors = resolveColors(b);
@@ -100,6 +100,7 @@ export function BrandPanel({ store }: { store: Store }) {
 
   return (
     <div className="panel-scroll">
+      {top}
       <Section title="Logo">
         <LogoSlot
           title="Logo"

@@ -1370,3 +1370,18 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .guide-check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); }
 .ob-check { display: inline-block; margin-inline-start: 8px; padding: 1px 8px; border-radius: 999px; background: var(--warn-bg); color: var(--warn-ink); font-size: 11px; font-weight: 600; letter-spacing: 0; text-transform: none; vertical-align: 1px; cursor: help; }
 .ob-logo-tile.on-dark, .ob-word-tile.on-dark { background: #1c1d22; }
+
+/* ---------- live brand guidelines as a brand asset (Brand tab) ---------- */
+.gl-asset { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--field, var(--canvas)); }
+.gl-asset-art { display: block; width: 100%; height: 150px; padding: 0; border: 0; cursor: pointer; background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 12%, var(--canvas)), var(--canvas)); }
+.gl-asset-art:hover .gl-window { transform: translateY(-2px); }
+.gl-asset-art .gl-window { transition: transform 0.2s ease; }
+.gl-asset-body { padding: 12px 14px 14px; display: grid; gap: 8px; }
+.gl-asset-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 14px; }
+.gl-asset-status { font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--ink) 8%, transparent); color: var(--ink-2); }
+.gl-asset-status.live { background: color-mix(in srgb, #18a058 16%, transparent); color: #127a43; }
+.gl-asset-status.stale { background: var(--warn-bg); color: var(--warn-ink); }
+.gl-asset-body p { margin: 0; font-size: 12.5px; line-height: 1.45; color: var(--ink-2); }
+.gl-asset-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.gl-asset-actions .primary-btn, .gl-asset-actions .ghost-btn { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.gl-asset-actions a.link-btn { text-decoration: none; }

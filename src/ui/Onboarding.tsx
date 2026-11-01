@@ -110,7 +110,7 @@ function LiveThumb({ project, assets }: { project: Project; assets: BrandAssets 
  * The "Live brand guidelines" card: a tiny brand page in a browser window that
  * scrolls through its sections (motion, colour, type, logo) and gets approved.
  */
-function GuidelinesThumb({ project, assets, url }: { project: Project; assets: BrandAssets; url: string }) {
+export function GuidelinesThumb({ project, assets, url }: { project: Project; assets: BrandAssets; url: string }) {
   const b = project.brand;
   const c = resolveColors(b);
   const font = { fontFamily: `"${b.font.family}"`, fontWeight: b.font.weight };
@@ -171,7 +171,7 @@ function GuidelinesThumb({ project, assets, url }: { project: Project; assets: B
 }
 
 /** What the brand page's address could look like, for the thumbnail. */
-function pageUrl(brand: BrandKit) {
+export function pageUrl(brand: BrandKit) {
   const host = (brand.website || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
   return host || brand.name || "yourbrand.com";
 }
