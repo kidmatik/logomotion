@@ -100,22 +100,17 @@ export function TopBar({ store, assets, onQuickStart, onShare }: { store: Store;
         <ProjectSwitcher />
         <TemplatePicker value={project.template} onChange={switchTemplate} project={project} assets={assets} />
         {onQuickStart && (
-          <button type="button" className="icon-btn" onClick={onQuickStart} title="Quick start: start again from your website, a logo or just a name" aria-label="Quick start">
-            <Icon.Sparkle size={18} />
+          <button type="button" className="quickstart-btn" onClick={onQuickStart} title="Quick start: start again from your website, a logo or just a name">
+            <Icon.Sparkle size={16} />
+            <span>Quick start</span>
           </button>
         )}
       </div>
 
-      <div className="segmented" role="radiogroup" aria-label="Format">
-        {ASPECT_OPTIONS.map((a) => (
-          <button key={a} type="button" role="radio" aria-checked={project.aspect === a} className={project.aspect === a ? "active" : ""} onClick={() => update((d) => void (d.aspect = a))}>
-            {a}
-          </button>
-        ))}
-      </div>
+      <AspectPicker store={store} className="tb-aspect" />
 
       <div className="tb-right">
-        <button type="button" className="icon-btn theme-btn" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+        <button type="button" className="icon-btn theme-btn hide-sm" onClick={toggleTheme} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"} aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
           {theme === "dark" ? <Icon.Sun /> : <Icon.Moon />}
         </button>
         <button type="button" className="icon-btn" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo">
@@ -126,10 +121,16 @@ export function TopBar({ store, assets, onQuickStart, onShare }: { store: Store;
         </button>
         <div className="menu-wrap">
           <button type="button" className="ghost-btn" onClick={() => setMenu(!menu)} aria-expanded={menu}>
-            <Icon.File size={16} /> File
+            <Icon.File size={16} /> <span className="btn-label">File</span>
           </button>
           {menu && (
             <div className="menu" onMouseLeave={() => setMenu(false)}>
+              {/* On phones the top bar is short on room, so these live in the menu too. */}
+              {onShare && (
+                <button type="button" className="show-sm" onClick={() => (onShare(), setMenu(false))}>Share a live page</button>
+              )}
+              <button type="button" className="show-sm" onClick={() => (toggleTheme(), setMenu(false))}>{theme === "dark" ? "Light mode" : "Dark mode"}</button>
+              <hr className="show-sm" />
               <button type="button" onClick={() => (act("save-file"), setMenu(false))}>Save project file</button>
               <button type="button" onClick={() => (fileInput.current?.click(), setMenu(false))}>Open project file…</button>
               <button type="button" onClick={() => (act("still"), setMenu(false))}>Download this frame (PNG)</button>
@@ -169,17 +170,20 @@ export function TopBar({ store, assets, onQuickStart, onShare }: { store: Store;
           />
         </div>
         {project.template === "logo-sting" && (
-          <button type="button" className="ghost-btn" onClick={() => act("all")} disabled={progress !== null} title="Download 16:9, 9:16 and 1:1 versions">
+          <button type="button" className="ghost-btn hide-sm" onClick={() => act("all")} disabled={progress !== null} title="Download 16:9, 9:16 and 1:1 versions">
             <Icon.Download size={16} /> All 3 formats
           </button>
         )}
         {onShare && (
-          <button type="button" className="ghost-btn" onClick={onShare} title="A live brand page your client can watch, copy from and approve">
+          <button type="button" className="ghost-btn hide-sm" onClick={onShare} title="A live brand page your client can watch, copy from and approve">
             <Icon.Link size={16} /> Share
           </button>
         )}
         <button type="button" className="primary-btn" onClick={() => act("video")} disabled={progress !== null}>
-          <Icon.Download size={16} /> Download video
+          <Icon.Download size={16} />
+          <span>
+            Download<span className="hide-sm"> video</span>
+          </span>
         </button>
         <AccountControls />
       </div>
@@ -221,5 +225,19 @@ export function TopBar({ store, assets, onQuickStart, onShare }: { store: Store;
         </div>
       )}
     </header>
+  );
+}
+
+/** Video format switch. The top bar has one on wide screens; phones get it under the preview. */
+export function AspectPicker({ store, className }: { store: Store; className?: string }) {
+  const { project, update } = store;
+  return (
+    <div className={"segmented" + (className ? " " + className : "")} role="radiogroup" aria-label="Format">
+      {ASPECT_OPTIONS.map((a) => (
+        <button key={a} type="button" role="radio" aria-checked={project.aspect === a} className={project.aspect === a ? "active" : ""} onClick={() => update((d) => void (d.aspect = a))}>
+          {a}
+        </button>
+      ))}
+    </div>
   );
 }

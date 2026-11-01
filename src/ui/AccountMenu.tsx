@@ -29,13 +29,13 @@ export function SaveStatus() {
   if (error && !pending)
     return (
       <span className="save-status error" title={error}>
-        <Icon.Cloud size={16} /> Not saved
+        <Icon.Cloud size={16} /> <span className="btn-label">Not saved</span>
       </span>
     );
   return (
     <span className="save-status" aria-live="polite">
       {pending ? <Icon.Cloud size={16} /> : <Icon.CloudCheck size={16} />}
-      {pending ? "Saving…" : "Saved"}
+      <span className="btn-label">{pending ? "Saving…" : "Saved"}</span>
     </span>
   );
 }
@@ -58,7 +58,7 @@ export function AccountControls() {
     return (
       <>
         <button type="button" className="ghost-btn" onClick={() => account.requireSignIn("save", "save")} title="Save this project to your account">
-          <Icon.Cloud size={16} /> Save
+          <Icon.Cloud size={16} /> <span className="btn-label">Save</span>
         </button>
         <button type="button" className="link-btn signin-link" onClick={() => account.requireSignIn("account")}>
           Sign in

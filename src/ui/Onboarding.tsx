@@ -7,6 +7,7 @@ import { fillPhotoScenes } from "../state/store";
 import { templateById } from "../templates";
 import { PLACEHOLDER_LOGO, defaultBrand } from "../brand/defaults";
 import { prepareSvg } from "../brand/logo";
+import { svgUrl, tinted } from "../brand/logoUrl";
 import { bitmapToSvg } from "../brand/logoImport";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
 import { brandFromSite, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
@@ -101,9 +102,74 @@ function LiveThumb({ project, assets }: { project: Project; assets: BrandAssets 
   return <canvas ref={ref} />;
 }
 
-function svgUrl(svg: string) {
-  const p = prepareSvg(svg);
-  return p.ok && p.svg ? "data:image/svg+xml;charset=utf-8," + encodeURIComponent(p.svg) : "";
+/**
+ * The "Live brand guidelines" card: a tiny brand page in a browser window that
+ * scrolls through its sections (motion, colour, type, logo) and gets approved.
+ */
+function GuidelinesThumb({ project, assets, url }: { project: Project; assets: BrandAssets; url: string }) {
+  const b = project.brand;
+  const c = resolveColors(b);
+  const font = { fontFamily: `"${b.font.family}"`, fontWeight: b.font.weight };
+  const logo = useMemo(() => tinted(b.logoSvg, b.logoColorMode === "original" ? null : c.black), [b.logoSvg, b.logoColorMode, c.black]);
+  const logoLight = useMemo(() => tinted(b.logoSvg, b.logoColorMode === "original" ? null : c.white), [b.logoSvg, b.logoColorMode, c.white]);
+  return (
+    <span className="gl-thumb" dir="ltr" style={{ ["--gl-primary" as string]: c.primary, ["--gl-secondary" as string]: c.secondary, ["--gl-dark" as string]: c.black, ["--gl-light" as string]: c.white }}>
+      <span className="gl-window">
+        <span className="gl-bar">
+          <i />
+          <i />
+          <i />
+          <span className="gl-url">
+            <span className="gl-live" /> {url}
+          </span>
+        </span>
+        <span className="gl-page">
+          <span className="gl-scroll">
+            <span className="gl-sec gl-hero">
+              <span className="gl-hero-text">
+                <strong style={font}>{b.name}</strong>
+                <span className="gl-hero-lines">
+                  <span className="gl-eyebrow" />
+                  <span className="gl-line" />
+                  <span className="gl-line short" />
+                </span>
+              </span>
+              <span className="gl-video">
+                <LiveThumb project={project} assets={assets} />
+              </span>
+            </span>
+            <span className="gl-sec gl-colors">
+              <span style={{ background: c.primary }} />
+              <span style={{ background: c.secondary }} />
+              <span style={{ background: c.black }} />
+              <span style={{ background: c.white }} />
+            </span>
+            <span className="gl-sec gl-type">
+              <strong style={font}>Aa</strong>
+              <span>
+                <span className="gl-line" />
+                <span className="gl-line" />
+                <span className="gl-line short" />
+              </span>
+            </span>
+            <span className="gl-sec gl-logos">
+              <span style={{ background: c.white }}>{logo && <img src={logo} alt="" />}</span>
+              <span style={{ background: c.black }}>{logoLight && <img src={logoLight} alt="" />}</span>
+            </span>
+          </span>
+        </span>
+      </span>
+      <span className="gl-approved">
+        <Icon.Check size={10} /> Approved
+      </span>
+    </span>
+  );
+}
+
+/** What the brand page's address could look like, for the thumbnail. */
+function pageUrl(brand: BrandKit) {
+  const host = (brand.website || "").replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
+  return host || brand.name || "yourbrand.com";
 }
 
 const ROLES: { role: ColorRole; key: TKey }[] = [
@@ -309,8 +375,12 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
               <div className="ob-goals">
                 {GOALS.map((g, i) => (
                   <button key={g.id} type="button" className={"ob-goal" + (goal === g.id ? " active" : "")} onClick={() => pickGoal(g.id)} aria-pressed={goal === g.id}>
-                    <span className="ob-goal-thumb">
-                      <LiveThumb project={goalProjects[i]} assets={assets} />
+                    <span className={"ob-goal-thumb" + (g.id === "page" ? " page" : "")}>
+                      {g.id === "page" ? (
+                        <GuidelinesThumb project={goalProjects[i]} assets={assets} url={pageUrl(brand)} />
+                      ) : (
+                        <LiveThumb project={goalProjects[i]} assets={assets} />
+                      )}
                     </span>
                     <strong>{t(g.title)}</strong>
                     <small>{t(g.sub)}</small>
