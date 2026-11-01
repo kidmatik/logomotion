@@ -18,7 +18,7 @@ const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
 /** The formats most social and video platforms want, for "Download all formats". */
 const ALL_FORMATS: Aspect[] = ["16:9", "9:16", "1:1"];
 
-export function TopBar({ store, assets }: { store: Store; assets: BrandAssets }) {
+export function TopBar({ store, assets, onQuickStart }: { store: Store; assets: BrandAssets; onQuickStart?: () => void }) {
   const { project, update, undo, redo, canUndo, canRedo, replace } = store;
   const [progress, setProgress] = useState<number | null>(null);
   const [batch, setBatch] = useState<string | null>(null);
@@ -98,6 +98,11 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
         <span className="brand-dot" aria-hidden />
         <ProjectSwitcher />
         <TemplatePicker value={project.template} onChange={switchTemplate} project={project} assets={assets} />
+        {onQuickStart && (
+          <button type="button" className="ghost-btn" onClick={onQuickStart} title="Start again from your website, a logo or just a name">
+            <Icon.Sparkle size={16} /> Quick start
+          </button>
+        )}
       </div>
 
       <div className="segmented" role="radiogroup" aria-label="Format">
