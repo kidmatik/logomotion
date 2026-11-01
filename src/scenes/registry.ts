@@ -17,6 +17,7 @@ import { mockupScene } from "./mockup";
 import { montageScene } from "./montage";
 import { product3dScene } from "./product3d";
 import { studioMockupScene } from "./studioMockup";
+import { videoMockupScene } from "./videoMockup";
 import { assembleScene, blueprintScene, chromeScene, flashScene, marqueeScene, socialScene, stackScene, wordbuildScene } from "./reel";
 
 /** Every scene the studio knows. Adding a scene = one file + one line here. */
@@ -47,6 +48,7 @@ export const SCENES: SceneDef[] = [
   montageScene,
   product3dScene,
   studioMockupScene,
+  videoMockupScene,
 ];
 
 const byType = new Map(SCENES.map((s) => [s.type, s]));

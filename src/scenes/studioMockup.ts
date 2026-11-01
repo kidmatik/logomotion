@@ -74,7 +74,14 @@ function slotBox(s: StudioSlot) {
 }
 
 function designCanvas(rc: RenderCtx, slot: StudioSlot, m: StudioMockup, fill: string, ink: string, content: string) {
-  const a = Math.max(0.2, Math.min(5, slot.aspect || 1));
+  // Small slots (sleeves, stickers seen edge-on) get just the mark.
+  const small = (slot.crop[2] * slot.crop[3]) / (m.size[0] * m.size[1]) < 0.02;
+  return brandSurface(rc, slot.aspect, small, fill, ink, content);
+}
+
+/** A brand-coloured surface with the logo and/or name, at a given width/height ratio. */
+export function brandSurface(rc: RenderCtx, aspect: number, small: boolean, fill: string, ink: string, content: string) {
+  const a = Math.max(0.2, Math.min(5, aspect || 1));
   const L = 1200;
   const W = a >= 1 ? L : Math.round(L * a), H = a >= 1 ? Math.round(L / a) : L;
   const c = document.createElement("canvas");
@@ -83,8 +90,6 @@ function designCanvas(rc: RenderCtx, slot: StudioSlot, m: StudioMockup, fill: st
   const g = c.getContext("2d")!;
   const r = new RenderCtx(g, W, H, { ...rc.brand, logoColorMode: "primary" }, rc.assets);
   r.fill(fill);
-  // Small slots (sleeves, stickers seen edge-on) get just the mark.
-  const small = (slot.crop[2] * slot.crop[3]) / (m.size[0] * m.size[1]) < 0.02;
   const mode = small || !rc.assets.logo ? (rc.assets.logo ? "mark" : "wordmark") : content;
   const box = Math.min(W, H);
   if (mode === "mark") r.drawLogo(W / 2, H / 2, box * 0.36, ink, { knockout: true });

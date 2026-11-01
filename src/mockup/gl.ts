@@ -544,3 +544,138 @@ export function drawPlate(ctx: CanvasRenderingContext2D, w: number, h: number, i
   drawBlurred(ctx, canvas, w, h, inp.blur);
   return true;
 }
+
+/* ---------- video mockups (plate stacked over its screen matte in one clip) ---------- */
+
+const VIDEO_FRAG = `#version 300 es
+precision highp float;
+uniform sampler2D uVideo, uDesign;
+uniform vec2 uRes;
+uniform mat3 uView, uSurf;
+uniform float uHas, uK, uGrade, uFlash;
+uniform vec3 uGradeDark, uGradeLight;
+out vec4 o;
+float lum(vec3 c){ return dot(c, vec3(0.2126, 0.7152, 0.0722)); }
+void main(){
+  vec2 pix = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);
+  vec3 vp = uView * vec3(pix, 1.);
+  vec2 uv = clamp(vp.xy / vp.z, vec2(0.), vec2(1.));
+  vec3 plate = texture(uVideo, vec2(uv.x, uv.y * 0.5)).rgb;
+  float matte = texture(uVideo, vec2(uv.x, 0.5 + uv.y * 0.5)).r;
+  matte = smoothstep(0.08, 0.92, matte);
+  vec3 col = plate;
+  if (uHas > 0.5) {
+    vec3 sq = uSurf * vec3(uv, 1.);
+    vec2 st = sq.xy / sq.z;
+    vec3 d = texture(uDesign, clamp(st, vec2(0.), vec2(1.))).rgb;
+    vec3 lit = 1. - (1. - d) * (1. - plate * 0.85);
+    col = mix(plate, lit, matte * uK);
+  }
+  vec2 suv = pix / uRes;
+  float v = length(suv - 0.5);
+  col *= 1. - 0.12 * v * v;
+  if (uGrade > 0.001) {
+    float l = lum(col);
+    vec3 toned = mix(uGradeDark, uGradeLight, smoothstep(0.0, 1.0, l)) * (0.35 + 0.9 * l);
+    vec3 split = col + (mix(uGradeDark, uGradeLight, l) - 0.5) * 0.35;
+    col = mix(col, mix(split, toned, 0.45), uGrade);
+  }
+  o = vec4(mix(col, vec3(1.), uFlash), 1.);
+}`;
+
+interface VideoGL {
+  canvas: HTMLCanvasElement;
+  gl: WebGL2RenderingContext;
+  loc: Record<string, WebGLUniformLocation | null>;
+  video: WebGLTexture;
+  design: Map<object, WebGLTexture>;
+}
+let videoState: VideoGL | null | undefined;
+
+function initVideo(): VideoGL | null {
+  if (videoState !== undefined) return videoState;
+  try {
+    const canvas = document.createElement("canvas");
+    const gl = canvas.getContext("webgl2", { premultipliedAlpha: false, preserveDrawingBuffer: true, antialias: false });
+    if (!gl) return (videoState = null);
+    const prog = gl.createProgram()!;
+    gl.attachShader(prog, compile(gl, gl.VERTEX_SHADER, VERT));
+    gl.attachShader(prog, compile(gl, gl.FRAGMENT_SHADER, VIDEO_FRAG));
+    gl.linkProgram(prog);
+    if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(prog) ?? "link error");
+    gl.useProgram(prog);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW);
+    const p = gl.getAttribLocation(prog, "p");
+    gl.enableVertexAttribArray(p);
+    gl.vertexAttribPointer(p, 2, gl.FLOAT, false, 0, 0);
+    const names = ["uVideo", "uDesign", "uRes", "uView", "uSurf", "uHas", "uK", "uGrade", "uFlash", "uGradeDark", "uGradeLight"];
+    const loc = Object.fromEntries(names.map((n) => [n, gl.getUniformLocation(prog, n)]));
+    gl.uniform1i(loc.uVideo, 0);
+    gl.uniform1i(loc.uDesign, 1);
+    const video = gl.createTexture()!;
+    gl.bindTexture(gl.TEXTURE_2D, video);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    videoState = { canvas, gl, loc, video, design: new Map() };
+  } catch (err) {
+    console.error("Video mockup renderer unavailable", err);
+    videoState = null;
+  }
+  return videoState;
+}
+
+export interface VideoMockupInput {
+  video: HTMLVideoElement;
+  design: HTMLCanvasElement;
+  /** Output pixel -> clip uv (0..1 of the plate). */
+  view: Mat3;
+  /** Screen corners in clip uv (TL TR BR BL of the design), or null when off screen. */
+  corners: Quad | null;
+  reveal: number;
+  grade?: number;
+  gradeDark?: [number, number, number];
+  gradeLight?: [number, number, number];
+  flash?: number;
+}
+
+export function drawVideoMockup(ctx: CanvasRenderingContext2D, w: number, h: number, inp: VideoMockupInput): boolean {
+  const s = initVideo();
+  if (!s) return false;
+  const { gl, loc, canvas } = s;
+  if (canvas.width !== w || canvas.height !== h) {
+    canvas.width = w;
+    canvas.height = h;
+  }
+  gl.viewport(0, 0, w, h);
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, s.video);
+  gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, inp.video);
+  let dt = s.design.get(inp.design);
+  if (!dt) {
+    s.design.set(inp.design, (dt = texture(gl, inp.design, true)));
+    if (s.design.size > 4) {
+      const [k, old] = s.design.entries().next().value!;
+      gl.deleteTexture(old);
+      s.design.delete(k);
+    }
+  }
+  gl.activeTexture(gl.TEXTURE1);
+  gl.bindTexture(gl.TEXTURE_2D, dt);
+  gl.uniformMatrix3fv(loc.uView, false, colMajor(inp.view));
+  gl.uniform1f(loc.uHas, inp.corners ? 1 : 0);
+  if (inp.corners) gl.uniformMatrix3fv(loc.uSurf, false, colMajor(invert(squareToQuad(inp.corners))));
+  gl.uniform2f(loc.uRes, w, h);
+  gl.uniform1f(loc.uK, inp.reveal);
+  gl.uniform1f(loc.uGrade, inp.grade ?? 0);
+  gl.uniform3fv(loc.uGradeDark, inp.gradeDark ?? [0, 0, 0]);
+  gl.uniform3fv(loc.uGradeLight, inp.gradeLight ?? [1, 1, 1]);
+  gl.uniform1f(loc.uFlash, inp.flash ?? 0);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+  ctx.drawImage(canvas, 0, 0, w, h);
+  return true;
+}
