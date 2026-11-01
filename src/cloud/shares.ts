@@ -62,6 +62,11 @@ export async function findShare(projectId: string): Promise<ShareRow | null> {
   return data ? { ...data, data: normalizeProject(data.data) } : null;
 }
 
+function alreadyThere(error: { message?: string; statusCode?: string | number; status?: number }) {
+  const msg = (error.message ?? "").toLowerCase();
+  return error.status === 409 || String(error.statusCode) === "409" || msg.includes("already exists") || msg.includes("duplicate");
+}
+
 /** Media files a page needs, copied to the public bucket. */
 async function uploadMedia(shareId: string, project: Project) {
   const store = db().storage.from(SHARED_BUCKET);
@@ -71,8 +76,10 @@ async function uploadMedia(shareId: string, project: Project) {
     if (have.has(m.id)) continue;
     const blob = await getBlob(m.id);
     if (!blob) continue;
-    const { error } = await store.upload(`${shareId}/${m.id}`, blob, { upsert: true, contentType: blob.type || undefined, cacheControl: "31536000" });
-    if (error) throw error;
+    // Media ids never change content, so a file that is already there is fine as it is.
+    // (Overwriting needs read access to the bucket, which older setups don't grant.)
+    const { error } = await store.upload(`${shareId}/${m.id}`, blob, { upsert: false, contentType: blob.type || undefined, cacheControl: "31536000" });
+    if (error && !alreadyThere(error)) throw error;
   }
 }
 
