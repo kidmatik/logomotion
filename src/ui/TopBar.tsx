@@ -100,8 +100,8 @@ export function TopBar({ store, assets, onQuickStart, onShare }: { store: Store;
         <ProjectSwitcher />
         <TemplatePicker value={project.template} onChange={switchTemplate} project={project} assets={assets} />
         {onQuickStart && (
-          <button type="button" className="ghost-btn" onClick={onQuickStart} title="Start again from your website, a logo or just a name">
-            <Icon.Sparkle size={16} /> Quick start
+          <button type="button" className="icon-btn" onClick={onQuickStart} title="Quick start: start again from your website, a logo or just a name" aria-label="Quick start">
+            <Icon.Sparkle size={18} />
           </button>
         )}
       </div>

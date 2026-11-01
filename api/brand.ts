@@ -9,7 +9,7 @@
  * private addresses on every redirect hop.
  */
 import { FetchError, safeFetch, text } from "./_lib/safeFetch";
-import { ColorTally, FontTally, LOOKALIKE, assignRoles, readPage, toHex } from "./_lib/brandExtract";
+import { ColorTally, FontTally, GradientTally, LOOKALIKE, assignRoles, readPage, toHex } from "./_lib/brandExtract";
 
 function json(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
@@ -85,9 +85,11 @@ export async function GET(request: Request) {
   const info = readPage(html, page);
   const colors = new ColorTally();
   const fonts = new FontTally();
+  const gradients = new GradientTally();
   if (info.themeColor) colors.add(info.themeColor, 40);
   colors.addCss(info.inlineCss);
   fonts.addCss(info.inlineCss);
+  gradients.addCss(info.inlineCss, 2);
   for (const href of info.stylesheets) if (/fonts\.googleapis\.com/.test(href)) fonts.addGoogleHref(href);
   for (const m of html.matchAll(/@import\s+url\(["']?(https:\/\/fonts\.googleapis\.com[^"')]+)/g)) fonts.addGoogleHref(m[1]);
 
@@ -102,6 +104,7 @@ export async function GET(request: Request) {
   for (const css of cssTexts) {
     colors.addCss(css);
     fonts.addCss(css);
+    gradients.addCss(css);
     for (const m of css.matchAll(/@import\s+url\(["']?(https:\/\/fonts\.googleapis\.com[^"')]+)/g)) fonts.addGoogleHref(m[1]);
   }
 
@@ -153,6 +156,7 @@ export async function GET(request: Request) {
       theme: info.themeColor ? toHex(info.themeColor) : null,
     },
     fonts: fontsOut,
+    gradients: gradients.list(),
     logos,
   });
 }

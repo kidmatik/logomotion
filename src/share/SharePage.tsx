@@ -13,6 +13,7 @@ import { ensureGoogleFont, weightLabel } from "../brand/fonts";
 import { clock, useClock } from "../state/clock";
 import { music } from "../audio/engine";
 import { useLang } from "../i18n";
+import { gradientCss } from "../engine/backdrop";
 import { Icon } from "../ui/icons";
 
 const T = {
@@ -332,6 +333,16 @@ function Guidelines({ share, t, lang, setLang, dir }: { share: PublicShare; t: T
               );
             })}
           </div>
+          {(b.gradients ?? []).length > 0 && (
+            <div className="sp-gradients">
+              {b.gradients.map((g) => (
+                <div key={g.id} className="sp-gradient">
+                  <span style={{ background: gradientCss(g) }} />
+                  <CopyChip value={gradientCss(g)} t={t} />
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         <section className="sp-section">

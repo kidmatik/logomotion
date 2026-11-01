@@ -1,5 +1,5 @@
 /** Client side of "paste your website": ask /api/brand, then turn the answer into brand kit values. */
-import type { BrandKit } from "../types";
+import type { BrandGradient, BrandKit } from "../types";
 import { GOOGLE_FONTS } from "./fonts";
 import { bitmapToSvg, cleanSiteSvg, isMultiColor } from "./logoImport";
 
@@ -23,6 +23,7 @@ export interface SiteBrand {
   colors: { primary: string | null; secondary: string | null; black: string | null; white: string | null; palette: string[]; theme: string | null };
   fonts: { family: string; original: string; google: boolean; lookalike: boolean }[];
   logos: SiteLogo[];
+  gradients?: { type: "linear" | "radial"; angle: number; stops: string[] }[];
 }
 
 /** A logo option ready for the brand kit. */
@@ -85,6 +86,7 @@ export function brandFromSite(site: SiteBrand, current: BrandKit): Partial<Brand
     },
     secondaryAuto: !c.secondary,
     direction: site.rtl ? "rtl" : "auto",
+    gradients: siteGradients(site),
   };
   if (font) patch.font = { family: font.family, source: "google", weight: current.font.weight || 600 };
   return patch;
@@ -94,4 +96,9 @@ export function brandFromSite(site: SiteBrand, current: BrandKit): Partial<Brand
 export function fontChoices(site: SiteBrand | null) {
   const fromSite = site?.fonts.map((f) => f.family) ?? [];
   return [...new Set([...fromSite, ...GOOGLE_FONTS])];
+}
+
+/** The site's own gradients, ready for the brand kit. */
+export function siteGradients(site: SiteBrand): BrandGradient[] {
+  return (site.gradients ?? []).map((g, i) => ({ id: `site-${i + 1}`, name: `From ${site.website || "your site"}${i ? ` ${i + 1}` : ""}`, type: g.type, angle: g.angle, stops: g.stops }));
 }

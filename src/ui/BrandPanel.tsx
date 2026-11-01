@@ -10,6 +10,7 @@ import { ColorSwatch, Help, LinkButton, Section, Select, Slider, Stepper, TextIn
 import { DropZone } from "./DropZone";
 import { Icon } from "./icons";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
+import { GradientsEditor } from "./BackdropControl";
 
 function svgPreviewUrl(svg: string) {
   const p = prepareSvg(svg);
@@ -232,6 +233,11 @@ export function BrandPanel({ store }: { store: Store }) {
             ))}
           </ul>
         )}
+      </Section>
+
+      <Section title="Gradients">
+        <GradientsEditor store={store} />
+        <Help>Use them behind any scene: Scenes → open a scene → Background → Gradient.</Help>
       </Section>
 
       <Section title="Details">

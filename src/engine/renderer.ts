@@ -1,4 +1,5 @@
 import type { Aspect, Project, SceneInstance } from "../types";
+import { paintBackdrop } from "./backdrop";
 import { sceneDef } from "../scenes/registry";
 import { RenderCtx, brandIsRtl, ease, type BrandAssets, type VideoRequest } from "./kit";
 
@@ -61,10 +62,28 @@ function drawScene(ctx: CanvasRenderingContext2D, w: number, h: number, project:
   const def = sceneDef(entry.scene.type)!;
   const rc = new RenderCtx(ctx, w, h, project.brand, assets);
   ctx.save();
+  // A background override is painted first, and the scene's own first full-frame fill is skipped.
+  const custom = paintBackdrop(ctx, w, h, project.brand, entry.scene.backdrop, local);
+  const fillRect = ctx.fillRect;
+  if (custom) {
+    let skipped = false;
+    ctx.fillRect = function (x: number, y: number, fw: number, fh: number) {
+      if (!skipped && x <= 0.5 && y <= 0.5 && fw >= w - 0.5 && fh >= h - 0.5) {
+        const m = this.getTransform();
+        if (Math.abs(m.a - 1) < 1e-3 && Math.abs(m.d - 1) < 1e-3 && Math.abs(m.b) < 1e-3 && Math.abs(m.c) < 1e-3 && Math.abs(m.e) < 0.5 && Math.abs(m.f) < 0.5) {
+          skipped = true;
+          return;
+        }
+      }
+      return fillRect.call(this, x, y, fw, fh);
+    };
+  }
   try {
     def.render(rc, local, entry.dur, entry.scene.params);
   } catch (err) {
     console.error(`Scene ${def.type} failed`, err);
+  } finally {
+    if (custom) delete (ctx as { fillRect?: unknown }).fillRect;
   }
   ctx.restore();
   requests.push(...rc.videoRequests);

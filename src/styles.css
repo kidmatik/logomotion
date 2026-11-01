@@ -840,3 +840,27 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
 .share-comments li > div .icon-btn { margin-inline-start: auto; width: 26px; height: 26px; }
 .share-comments li p { margin: 4px 0 0; color: var(--ink-2); white-space: pre-wrap; }
 .danger-link { color: var(--danger); }
+.ob-gradients { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-gradient { width: 64px; height: 40px; border-radius: 10px; border: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); cursor: pointer; transition: transform 0.12s; }
+.ob-gradient:hover { transform: translateY(-1px); }
+.ob-gradient.active { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.backdrop-control { display: grid; gap: 8px; padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.bd-swatches { display: flex; flex-wrap: wrap; gap: 6px; }
+.bd-swatch { width: 30px; height: 30px; border-radius: 8px; border: 0; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12); cursor: pointer; }
+.bd-swatch.wide { width: 52px; }
+.bd-swatch.active { box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent); }
+.gradients-editor { display: grid; gap: 10px; }
+.grad-row { display: flex; gap: 10px; padding: 8px; border: 1px solid var(--line); border-radius: var(--radius-sm); }
+.grad-preview { flex: none; width: 56px; border-radius: 8px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.1); }
+.grad-body { flex: 1; min-width: 0; display: grid; gap: 6px; }
+.grad-head { display: flex; gap: 6px; align-items: center; }
+.grad-name { flex: 1; min-width: 0; font: inherit; font-size: 13px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--field); color: var(--ink); }
+.grad-stops { display: flex; gap: 6px; align-items: center; }
+.grad-stop { position: relative; width: 26px; height: 26px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15); overflow: hidden; display: grid; place-items: center; border: 0; padding: 0; }
+.grad-stop input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.grad-stop.add { background: var(--field); color: var(--ink-2); cursor: pointer; font-size: 14px; }
+.sp-gradients { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.sp-gradient { display: grid; gap: 8px; min-width: 0; }
+.sp-gradient > span { height: 140px; border-radius: 18px; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06); }
+.sp-gradient .sp-copy { max-width: 100%; }
+.sp-gradient .sp-copy span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -143,6 +143,79 @@ export function assignRoles(hits: ColorHit[]): ColorRoles {
   return { primary: primary ?? black, secondary, black, white: light[0]?.hex ?? null, palette };
 }
 
+/* ---------------- gradients ---------------- */
+
+export interface FoundGradient {
+  type: "linear" | "radial";
+  angle: number;
+  stops: string[];
+  weight: number;
+}
+
+const SIDES: Record<string, number> = {
+  "to top": 0, "to top right": 45, "to right top": 45, "to right": 90, "to bottom right": 135, "to right bottom": 135,
+  "to bottom": 180, "to bottom left": 225, "to left bottom": 225, "to left": 270, "to top left": 315, "to left top": 315,
+};
+
+/** Split on commas that aren't inside brackets. */
+function splitTop(s: string) {
+  const out: string[] = [];
+  let depth = 0, cur = "";
+  for (const ch of s) {
+    if (ch === "(") depth++;
+    if (ch === ")") depth--;
+    if (ch === "," && depth === 0) {
+      out.push(cur.trim());
+      cur = "";
+    } else cur += ch;
+  }
+  if (cur.trim()) out.push(cur.trim());
+  return out;
+}
+
+/** Brand gradients used in CSS: linear and radial, with at least two solid colours. */
+export class GradientTally {
+  private map = new Map<string, FoundGradient>();
+  addCss(css: string, base = 1) {
+    const re = /(?:-webkit-)?(repeating-)?(linear|radial)-gradient\(/g;
+    let m: RegExpExecArray | null;
+    let guard = 0;
+    while ((m = re.exec(css)) && guard++ < 3000) {
+      if (m[1]) continue;
+      let depth = 1, i = re.lastIndex;
+      for (; i < css.length && depth > 0; i++) {
+        if (css[i] === "(") depth++;
+        else if (css[i] === ")") depth--;
+      }
+      const inner = css.slice(re.lastIndex, i - 1);
+      const parts = splitTop(inner);
+      let angle = m[2] === "linear" ? 180 : 0;
+      const first = parts[0]?.toLowerCase() ?? "";
+      if (m[2] === "linear" && /deg|turn|^to /.test(first)) {
+        angle = first.endsWith("turn") ? parseFloat(first) * 360 : SIDES[first] ?? parseFloat(first);
+        parts.shift();
+      } else if (m[2] === "radial" && !/^(#|rgb|hsl|[a-z]+\s*$)/.test(first)) parts.shift();
+      const stops: string[] = [];
+      for (const p of parts) {
+        const tok = p.match(/#[0-9a-fA-F]{3,8}\b|rgba?\([^)]*\)|hsla?\([^)]*\)|\b(white|black)\b/)?.[0];
+        const hex = tok ? toHex(tok) : null;
+        if (hex && stops[stops.length - 1] !== hex) stops.push(hex);
+      }
+      const distinct = new Set(stops);
+      if (distinct.size < 2 || stops.length > 6 || !Number.isFinite(angle)) continue;
+      // Grey-to-grey fades are UI shading, not brand gradients.
+      if (stops.every((h) => hsl(h).s < 0.15)) continue;
+      const key = `${m[2]}|${Math.round(angle)}|${stops.join(",")}`;
+      const hit = this.map.get(key);
+      if (hit) hit.weight += base;
+      else this.map.set(key, { type: m[2] as "linear" | "radial", angle: Math.round(angle), stops: stops.slice(0, 4), weight: base });
+    }
+  }
+  list(max = 4) {
+    return [...this.map.values()].sort((a, b) => b.weight - a.weight).slice(0, max);
+  }
+}
+
 /* ---------------- fonts ---------------- */
 
 const GENERIC = new Set([

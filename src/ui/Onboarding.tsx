@@ -15,6 +15,7 @@ import { isRtlText } from "../engine/kit";
 import { normalizeHex } from "../brand/color";
 import { resolveColors } from "../engine/kit";
 import { PlayerBar, Preview } from "./Preview";
+import { brandGradients, gradientCss } from "../engine/backdrop";
 import { DropZone } from "./DropZone";
 import { Icon } from "./icons";
 import { clock } from "../state/clock";
@@ -39,6 +40,9 @@ const GOALS: { id: Goal; template: string; title: TKey; sub: TKey }[] = [
   { id: "film", template: "brand-in-motion", title: "goalFilm", sub: "goalFilmSub" },
   { id: "page", template: "brand-in-motion", title: "goalPage", sub: "goalPageSub" },
 ];
+
+/** The logo moments a gradient picked in onboarding goes behind. */
+const HERO = ["reveal", "sting", "wordbuild", "assemble", "signoff", "endcard", "flash"];
 
 const PROFILE_KEY = "logomotion.profile";
 export const ONBOARDED_KEY = "logomotion.onboarded";
@@ -456,6 +460,33 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
                     </div>
                   </>
                 )}
+              </div>
+
+              <div className="ob-field">
+                <label>{t("gradients")}</label>
+                <p className="ob-note">{t("gradientsHint")}</p>
+                <div className="ob-gradients">
+                  {brandGradients(brand).map((g) => {
+                    const active = draft.scenes.some((sc) => HERO.includes(sc.type) && sc.backdrop?.mode === "gradient" && sc.backdrop.gradient === g.id);
+                    return (
+                      <button
+                        key={g.id}
+                        type="button"
+                        className={"ob-gradient" + (active ? " active" : "")}
+                        style={{ background: gradientCss(g) }}
+                        title={g.name}
+                        aria-label={g.name}
+                        aria-pressed={active}
+                        onClick={() =>
+                          setDraft((d) => ({
+                            ...d,
+                            scenes: d.scenes.map((sc) => (HERO.includes(sc.type) ? { ...sc, backdrop: active ? undefined : { mode: "gradient", color: "primary", gradient: g.id, motion: "drift" } } : sc)),
+                          }))
+                        }
+                      />
+                    );
+                  })}
+                </div>
               </div>
 
               <div className="ob-field">
