@@ -35,8 +35,25 @@ export interface LogoOption {
   label: string;
 }
 
+// Hebrew keyboard layout -> the English key in the same place.
+const HE_KEYS: Record<string, string> = {
+  "'": "w", "ק": "e", "ר": "r", "א": "t", "ט": "y", "ו": "u", "ן": "i", "ם": "o", "פ": "p",
+  "ש": "a", "ד": "s", "ג": "d", "כ": "f", "ע": "g", "י": "h", "ח": "j", "ל": "k", "ך": "l", "ף": ";",
+  "ז": "z", "ס": "x", "ב": "c", "ה": "v", "נ": "b", "מ": "n", "צ": "m", "ת": ",", "ץ": ".",
+};
+
+/**
+ * A web address typed with the Hebrew keyboard on ("צשאשמץגקדןעמ" for "matan.design"):
+ * swap each key back to its English letter. Works key by key, so it fixes the field as you type.
+ * ("/" stays, since it's also a real address character; an apostrophe never is, so it becomes "w".)
+ */
+export function fixAddressLayout(input: string): string {
+  if (!/[\u05D0-\u05EA']/.test(input)) return input;
+  return [...input].map((c) => HE_KEYS[c] ?? c).join("");
+}
+
 export async function readSite(url: string, signal?: AbortSignal): Promise<SiteBrand> {
-  const res = await fetch(`/api/brand?url=${encodeURIComponent(url.trim())}`, { signal });
+  const res = await fetch(`/api/brand?url=${encodeURIComponent(fixAddressLayout(url.trim()))}`, { signal });
   let body: (SiteBrand & { error?: string }) | null = null;
   try {
     body = await res.json();

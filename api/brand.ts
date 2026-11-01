@@ -79,7 +79,8 @@ export async function GET(request: Request) {
     html = text(f);
   } catch (e) {
     const err = e instanceof FetchError ? e : new FetchError("We couldn't read that website.");
-    return json({ error: err.message }, err.status);
+    const blocked = /\((401|403|429|503)\)/.test(err.message);
+    return json({ error: blocked ? "That website doesn't let automatic visitors in, so we couldn't read it." : err.message }, err.status);
   }
 
   const info = readPage(html, page);
