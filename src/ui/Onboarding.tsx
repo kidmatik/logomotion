@@ -10,7 +10,7 @@ import { prepareSvg } from "../brand/logo";
 import { svgUrl, tinted } from "../brand/logoUrl";
 import { bitmapToSvg } from "../brand/logoImport";
 import { makeLogos, type MadeLogo } from "../brand/logoMaker";
-import { brandFromSite, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
+import { brandFromSite, fillColorsFromIcon, fixAddressLayout, fontChoices, logoOptions, readSite, type LogoOption, type SiteBrand } from "../brand/fromSite";
 import { HEBREW_FONTS, ensureGoogleFont } from "../brand/fonts";
 import { isRtlText } from "../engine/kit";
 import { normalizeHex } from "../brand/color";
@@ -241,7 +241,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
     setBusy(true);
     setError(null);
     try {
-      const s = await readSite(url);
+      const s = await fillColorsFromIcon(await readSite(url));
       const logos = await logoOptions(s);
       setSite(s);
       setSiteLogos(logos);
@@ -449,6 +449,7 @@ export function Onboarding({ initial, onFinish, onSkip }: { initial: Project; on
             <>
               <h1>{t("reviewTitle")}</h1>
               <p className="ob-sub">{t("reviewSub")}</p>
+              {site?.blocked && <p className="ob-note ob-warn">{t("sitePartial", { site: site.website })}</p>}
 
               <div className="ob-field">
                 <label>{t("logo")}</label>

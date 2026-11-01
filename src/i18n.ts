@@ -42,6 +42,7 @@ const en = {
   makeLogo: "Make a logo",
   siteFailed: "We couldn't read that site: {msg} You can upload a logo or type the name instead.",
   siteBlocked: "That website doesn't let automatic visitors in, so we couldn't read it. Upload the logo or type the name instead.",
+  sitePartial: "{site} doesn't let automatic visitors in, so we could only get its name and icon, and took the colours from the icon. Check them below, and upload the real logo for the sharpest result.",
   // step 3
   reviewTitle: "Is this your brand?",
   reviewSub: "Tap anything to change it. The video on the right updates as you go.",
@@ -109,6 +110,7 @@ const he: Dict = {
   makeLogo: "צרו לוגו",
   siteFailed: "לא הצלחנו לקרוא את האתר: {msg} אפשר להעלות לוגו או להקליד את השם.",
   siteBlocked: "האתר הזה חוסם מבקרים אוטומטיים, אז לא הצלחנו לקרוא אותו. העלו את הלוגו או הקלידו את השם.",
+  sitePartial: "האתר {site} חוסם מבקרים אוטומטיים, אז הצלחנו לקחת רק את השם והאייקון שלו, והצבעים נלקחו מהאייקון. בדקו אותם למטה, ולתוצאה הכי חדה העלו את הלוגו האמיתי.",
   reviewTitle: "זה המותג שלכם?",
   reviewSub: "לחצו על כל דבר כדי לשנות. הסרטון מתעדכן בזמן אמת.",
   logo: "לוגו",

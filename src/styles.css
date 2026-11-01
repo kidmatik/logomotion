@@ -1103,3 +1103,4 @@ input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; border-radius
   .sp-form-actions > * { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
   .sp-actions > * { flex: 1 1 auto; justify-content: center; }
 }
+.ob-note.ob-warn { color: var(--warn-ink); background: var(--warn-bg); border-radius: var(--radius-sm); padding: 10px 12px; margin: 4px 0 8px; }

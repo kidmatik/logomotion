@@ -11,10 +11,10 @@
 import { FetchError, safeFetch, text } from "./_lib/safeFetch.js";
 import { ColorTally, FontTally, GradientTally, LOOKALIKE, assignRoles, readPage, toHex } from "./_lib/brandExtract.js";
 
-function json(data: unknown, status = 200) {
+function json(data: unknown, status = 200, cache = status === 200 ? "public, s-maxage=86400" : "no-store") {
   return new Response(JSON.stringify(data), {
     status,
-    headers: { "content-type": "application/json", "cache-control": status === 200 ? "public, s-maxage=86400" : "no-store" },
+    headers: { "content-type": "application/json", "cache-control": cache },
   });
 }
 
@@ -63,6 +63,44 @@ async function resolveLogo(c: { svg?: string; url?: string; from: string }, page
   }
 }
 
+/** "trio-cloud.com" -> "Trio Cloud". */
+function nameFromHost(host: string) {
+  const base = host.replace(/^www\./, "").split(".")[0] ?? "";
+  return base
+    .split(/[-_]+/)
+    .filter(Boolean)
+    .map((w) => w[0].toUpperCase() + w.slice(1))
+    .join(" ");
+}
+
+/**
+ * The site turned us away (bot protection). Don't try to get past it: return
+ * what we can learn without visiting it, the name from the address and the
+ * site's icon from Google's public favicon service, flagged as partial so the
+ * onboarding asks the user to check it. Colours are sampled from the icon in
+ * the browser (no image decoder here).
+ */
+async function blockedResult(page: URL) {
+  const host = page.hostname.replace(/^www\./, "");
+  const icon = await resolveLogo({ url: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(host)}&sz=256`, from: "icon" }, page);
+  const name = nameFromHost(host);
+  return {
+    blocked: true,
+    url: page.toString(),
+    website: host,
+    name,
+    tagline: "",
+    description: "",
+    handle: host.split(".")[0].replace(/[^a-z0-9_]/gi, ""),
+    rtl: false,
+    lang: "",
+    colors: { primary: null, secondary: null, black: null, white: null, palette: [], theme: null },
+    fonts: [],
+    gradients: [],
+    logos: icon ? [icon] : [],
+  };
+}
+
 export async function GET(request: Request) {
   const raw = (new URL(request.url).searchParams.get("url") ?? "").trim();
   let page: URL;
@@ -80,7 +118,8 @@ export async function GET(request: Request) {
   } catch (e) {
     const err = e instanceof FetchError ? e : new FetchError("We couldn't read that website.");
     const blocked = /\((401|403|429|503)\)/.test(err.message);
-    return json({ error: blocked ? "That website doesn't let automatic visitors in, so we couldn't read it." : err.message }, err.status);
+    if (blocked) return json(await blockedResult(page), 200, "public, s-maxage=3600");
+    return json({ error: err.message }, err.status);
   }
 
   const info = readPage(html, page);

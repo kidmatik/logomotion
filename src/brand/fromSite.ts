@@ -12,6 +12,8 @@ export interface SiteLogo {
 }
 
 export interface SiteBrand {
+  /** The site blocks automatic visitors: only its name (from the address) and icon are known. */
+  blocked?: boolean;
   url: string;
   website: string;
   name: string;
@@ -62,6 +64,57 @@ export async function readSite(url: string, signal?: AbortSignal): Promise<SiteB
   }
   if (!res.ok || !body) throw new Error(body?.error ?? `We couldn't read that website (${res.status}).`);
   return body;
+}
+
+/** The main colours of a small image (a site icon), most used first. Greys, white and black are skipped. */
+export async function imageColors(dataUrl: string, max = 3): Promise<string[]> {
+  const img = await new Promise<HTMLImageElement | null>((resolve) => {
+    const i = new Image();
+    i.onload = () => resolve(i);
+    i.onerror = () => resolve(null);
+    i.src = dataUrl;
+  });
+  if (!img || !img.naturalWidth) return [];
+  const S = 64;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = S;
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  if (!ctx) return [];
+  ctx.drawImage(img, 0, 0, S, S);
+  const px = ctx.getImageData(0, 0, S, S).data;
+  // Group pixels into 30-degree hue buckets and average each bucket.
+  const bins = new Map<number, { n: number; r: number; g: number; b: number }>();
+  for (let i = 0; i < px.length; i += 4) {
+    const [r, g, b, a] = [px[i], px[i + 1], px[i + 2], px[i + 3]];
+    if (a < 200) continue;
+    const hi = Math.max(r, g, b);
+    const lo = Math.min(r, g, b);
+    if (hi - lo < 40 || hi < 40) continue;
+    const d = hi - lo;
+    const h = hi === r ? ((g - b) / d + 6) % 6 : hi === g ? (b - r) / d + 2 : (r - g) / d + 4;
+    const key = Math.floor(h * 2) % 12;
+    const bin = bins.get(key) ?? { n: 0, r: 0, g: 0, b: 0 };
+    bin.n++;
+    bin.r += r;
+    bin.g += g;
+    bin.b += b;
+    bins.set(key, bin);
+  }
+  const hex = (v: number) => Math.round(v).toString(16).padStart(2, "0");
+  return [...bins.values()]
+    .filter((b) => b.n >= 6)
+    .sort((a, b) => b.n - a.n)
+    .slice(0, max)
+    .map((b) => `#${hex(b.r / b.n)}${hex(b.g / b.n)}${hex(b.b / b.n)}`.toUpperCase());
+}
+
+/** For a blocked site, take the colours from its icon. */
+export async function fillColorsFromIcon(site: SiteBrand): Promise<SiteBrand> {
+  const icon = site.logos.find((l) => l.kind === "image" && l.dataUrl);
+  if (!site.blocked || site.colors.primary || !icon?.dataUrl) return site;
+  const found = await imageColors(icon.dataUrl).catch(() => []);
+  if (!found.length) return site;
+  return { ...site, colors: { ...site.colors, primary: found[0], secondary: found[1] ?? null, palette: found } };
 }
 
 /** Turn the site's logo candidates into SVGs the editor can use, best first. */
