@@ -47,6 +47,24 @@ Keys live on the server and are used by the proxies in `api/`, so they never rea
 Add the variable for Production and Preview, then deploy. `/api/pexels?status=1` returns `{"enabled":true}` once a key is picked up.
 For local `npm run dev` (no `api/` functions), use `VITE_PEXELS_API_KEY` / `VITE_UNSPLASH_ACCESS_KEY` in `.env.local` instead.
 
+## Accounts and saved projects
+
+Anyone can open the editor and build a video without an account. **Downloading** (video, PNG, all formats) and **saving** ask for Google sign-in first. Once signed in:
+
+- Projects (brand kit, scenes, music) save to the account as you edit, with a "Saved" indicator.
+- Media files upload to a private storage folder per user, so they open on any device.
+- The project switcher (top left) lists your projects with thumbnails: new (keeps your brand kit), rename, delete.
+- Whatever a guest built before signing in is brought into their account automatically.
+
+It runs on Supabase (Auth with the Google provider, Postgres, Storage). Setup:
+
+1. Create a Supabase project and run [`supabase/schema.sql`](supabase/schema.sql) in its SQL Editor.
+2. In Google Cloud Console create an OAuth client (Web application) with the redirect URI `https://<project-ref>.supabase.co/auth/v1/callback`, and paste its Client ID and secret into Supabase -> Authentication -> Sign In / Providers -> Google.
+3. In Supabase -> Authentication -> URL Configuration set the Site URL to the production URL and add `https://*.vercel.app/**` and `http://localhost:5173/**` as redirect URLs.
+4. Set `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in Vercel (Production and Preview) and redeploy.
+
+Without those two variables the app runs as before, with no sign-in and everything kept in the browser.
+
 ## Downloads and payments
 
 `src/state/entitlement.ts` decides who can download. The paywall is off until payments are live (`VITE_PAYWALL=off`; see `.env.example`).

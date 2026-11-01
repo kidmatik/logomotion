@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Aspect } from "../types";
 import type { Store } from "../state/store";
 import { fillPhotoScenes, normalizeProject } from "../state/store";
@@ -10,6 +10,9 @@ import { clock } from "../state/clock";
 import { Icon } from "./icons";
 import { canDownload } from "../state/entitlement";
 import { useTheme } from "../state/theme";
+import { needsSignIn, useAccount } from "../cloud/account";
+import { AccountControls } from "./AccountMenu";
+import { ProjectSwitcher } from "./ProjectSwitcher";
 
 const ASPECT_OPTIONS: Aspect[] = ["16:9", "9:16", "1:1", "4:5"];
 /** The formats most social and video platforms want, for "Download all formats". */
@@ -24,11 +27,35 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
   const abort = useRef<AbortController | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const { theme, toggle: toggleTheme } = useTheme();
+  const account = useAccount();
+  const [resumeOffer, setResumeOffer] = useState<string | null>(null);
+
+  // Back from Google after pressing Download or Save as a guest: finish what they started.
+  useEffect(() => {
+    if (!account.user || !account.resume) return;
+    setResumeOffer(account.resume);
+    account.clearResume();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [account.user]);
+
+  /** Downloads and saving need an account (when accounts are switched on). */
+  const gated = (resume: string, run: () => void) => {
+    if (needsSignIn(account)) account.requireSignIn(resume === "save-file" ? "save" : "download", resume);
+    else run();
+  };
+  const actions: Record<string, { label: string; run: () => void }> = {
+    video: { label: "Download video", run: () => doExport(1) },
+    video2x: { label: "Download video in 2× size", run: () => doExport(2) },
+    all: { label: "Download all 3 formats", run: () => doExport(1, ALL_FORMATS) },
+    still: { label: "Download this frame", run: () => exportStill(project, assets, clock.t) },
+    "save-file": { label: "Save project file", run: () => exportProjectFile(project) },
+  };
+  const act = (id: string) => gated(id, actions[id].run);
 
   const doExport = async (scale: number, formats?: Aspect[]) => {
     setError(null);
-    // Sign-in isn't built yet, so there is no account to pass; with the paywall off this always allows.
-    if (!canDownload(null)) {
+    // Payments aren't live, so the paywall is off and every signed-in user can download.
+    if (!canDownload(account.user ? { email: account.user.email, plan: "free" } : null)) {
       setError("Downloading videos needs the Lifetime plan.");
       return;
     }
@@ -69,6 +96,7 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
     <header className="topbar">
       <div className="tb-left">
         <span className="brand-dot" aria-hidden />
+        <ProjectSwitcher />
         <TemplatePicker value={project.template} onChange={switchTemplate} project={project} assets={assets} />
       </div>
 
@@ -92,15 +120,15 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
         </button>
         <div className="menu-wrap">
           <button type="button" className="ghost-btn" onClick={() => setMenu(!menu)} aria-expanded={menu}>
-            <Icon.File size={16} /> Project
+            <Icon.File size={16} /> File
           </button>
           {menu && (
             <div className="menu" onMouseLeave={() => setMenu(false)}>
-              <button type="button" onClick={() => (exportProjectFile(project), setMenu(false))}>Save project file</button>
+              <button type="button" onClick={() => (act("save-file"), setMenu(false))}>Save project file</button>
               <button type="button" onClick={() => (fileInput.current?.click(), setMenu(false))}>Open project file…</button>
-              <button type="button" onClick={() => (exportStill(project, assets, clock.t), setMenu(false))}>Download this frame (PNG)</button>
-              <button type="button" onClick={() => (doExport(2), setMenu(false))}>Download video in 2× size</button>
-              <button type="button" onClick={() => (doExport(1, ALL_FORMATS), setMenu(false))}>Download in 16:9, 9:16 and 1:1</button>
+              <button type="button" onClick={() => (act("still"), setMenu(false))}>Download this frame (PNG)</button>
+              <button type="button" onClick={() => (act("video2x"), setMenu(false))}>Download video in 2× size</button>
+              <button type="button" onClick={() => (act("all"), setMenu(false))}>Download in 16:9, 9:16 and 1:1</button>
               <hr />
               <button
                 type="button"
@@ -135,13 +163,14 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
           />
         </div>
         {project.template === "logo-sting" && (
-          <button type="button" className="ghost-btn" onClick={() => doExport(1, ALL_FORMATS)} disabled={progress !== null} title="Download 16:9, 9:16 and 1:1 versions">
+          <button type="button" className="ghost-btn" onClick={() => act("all")} disabled={progress !== null} title="Download 16:9, 9:16 and 1:1 versions">
             <Icon.Download size={16} /> All 3 formats
           </button>
         )}
-        <button type="button" className="primary-btn" onClick={() => doExport(1)} disabled={progress !== null}>
+        <button type="button" className="primary-btn" onClick={() => act("video")} disabled={progress !== null}>
           <Icon.Download size={16} /> Download video
         </button>
+        <AccountControls />
       </div>
 
       {progress !== null && (
@@ -156,6 +185,23 @@ export function TopBar({ store, assets }: { store: Store; assets: BrandAssets })
               Cancel
             </button>
           </div>
+        </div>
+      )}
+      {resumeOffer && (
+        <div className="toast resume-toast" role="status">
+          {actions[resumeOffer] ? (
+            <>
+              <span>You're signed in.</span>
+              <button type="button" className="primary-btn small" onClick={() => (setResumeOffer(null), actions[resumeOffer].run())}>
+                <Icon.Download size={14} /> {actions[resumeOffer].label}
+              </button>
+            </>
+          ) : (
+            <span>You're signed in. This project is saved to your account and saves as you edit.</span>
+          )}
+          <button type="button" className="icon-btn" aria-label="Dismiss" onClick={() => setResumeOffer(null)}>
+            <Icon.Close size={14} />
+          </button>
         </div>
       )}
       {error && (
