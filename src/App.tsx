@@ -42,7 +42,7 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     if (v === "page") {
       if (!store.project.guide) store.update((d) => void (d.guide = emptyGuide()));
       setTab("page");
-    } else if (tab === "page") setTab("brand");
+    }
   };
   // store.update is stable, so the library only needs building once.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -137,14 +137,14 @@ export default function App({ initial, persist }: { initial: Project; persist: (
           <nav className="tabs" role="tablist">
             {(
               [
-                ...(view === "page" ? [["page", "Page"]] : []),
+                ["page", "Page"],
                 ["brand", "Brand"],
                 ["scenes", "Scenes"],
                 ["media", "Media"],
                 ["music", "Music"],
               ] as [Tab, string][]
             ).map(([id, label]) => (
-              <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => setTab(id)}>
+              <button key={id} type="button" role="tab" aria-selected={tab === id} className={tab === id ? "active" : ""} onClick={() => (id === "page" ? setView("page") : setTab(id))}>
                 {label}
                 {id === "media" && project.media.length > 0 && <span className="count">{project.media.length}</span>}
               </button>
