@@ -55,9 +55,13 @@ export async function logoOptions(site: SiteBrand): Promise<LogoOption[]> {
       if (svg) out.push({ id: `site-${i}`, svg, original: isMultiColor(svg), label: l.from === "icon" ? "Site icon" : "From your site" });
     } else if (l.kind === "image" && l.dataUrl) {
       const r = await bitmapToSvg(l.dataUrl).catch(() => null);
+      // A big picture with a busy background is a banner or a screenshot, not a logo.
+      if (r && r.opaque && (Math.max(r.width, r.height) > 320 || !/icon/.test(l.from))) continue;
       if (r) out.push({ id: `site-${i}`, svg: r.svg, original: true, label: l.from === "app icon" ? "App icon" : "From your site" });
     }
   }
+  // Vector logos first: they stay sharp and can take the brand colours.
+  out.sort((a, b) => Number(/<image\b/.test(a.svg)) - Number(/<image\b/.test(b.svg)));
   // Drop exact duplicates (sites often repeat the header logo in the footer).
   return out.filter((o, i) => out.findIndex((p) => p.svg === o.svg) === i);
 }

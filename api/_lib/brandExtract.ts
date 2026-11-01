@@ -399,7 +399,10 @@ export function readPage(html: string, page: URL): PageInfo {
     const label = attrs(img) + " " + src.toLowerCase();
     let score = 0;
     if (/logo|brand|wordmark/.test(label)) score += 5;
-    if (nameKey && squash(img.getAttribute("alt") ?? "").includes(nameKey)) score += 3;
+    const alt = squash(img.getAttribute("alt") ?? "");
+    if (nameKey && alt.includes(nameKey)) score += 3;
+    // "Acme logo" on a studio's site is a client's logo, not the studio's own.
+    else if (nameKey && alt.length > 2 && !closest(img, (e) => /^(header|nav)$/i.test(e.tagName), 8)) score -= 4;
     if (isHomeLink(img.closest("a") as HTMLElement | null, page)) score += 4;
     if (closest(img, (e) => /^(header|nav)$/i.test(e.tagName) || /header|navbar/.test(attrs(e, 1)))) score += 3;
     if (i < 3) score += 1;

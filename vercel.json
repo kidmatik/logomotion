@@ -1,5 +1,16 @@
 {
   "functions": {
-    "api/screenshot.ts": { "maxDuration": 45 }
-  }
+    "api/screenshot.ts": {
+      "maxDuration": 45
+    },
+    "api/brand.ts": {
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/s/:id",
+      "destination": "/index.html"
+    }
+  ]
 }

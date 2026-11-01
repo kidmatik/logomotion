@@ -18,6 +18,7 @@ import { useProjectThumbnail } from "./state/thumbnail";
 import { Onboarding, isPristine, onboarded, type OnboardingResult } from "./ui/Onboarding";
 import { capturePage } from "./brand/media";
 import type { Library } from "./state/library";
+import { ShareDialog } from "./ui/ShareDialog";
 
 type Tab = "brand" | "scenes" | "media" | "music";
 
@@ -34,12 +35,14 @@ export default function App({ initial, persist }: { initial: Project; persist: (
   const assetsValue = useMemo(() => ({ assets, version }), [assets, version]);
   const [onboarding, setOnboarding] = useState(() => !onboarded() && isPristine(initial));
   const [notice, setNotice] = useState<string | null>(null);
+  const [sharing, setSharing] = useState(false);
 
   const finishOnboarding = (r: OnboardingResult) => {
     store.replace(r.project);
     setOnboarding(false);
     clock.seek(0);
     clock.setPlaying(true);
+    if (r.goal === "page") setSharing(true);
     if (r.capture || r.files.length) {
       setNotice(r.capture ? "Capturing your website and adding your files…" : "Adding your files…");
       addMaterials(library, r.capture, r.files)
@@ -95,7 +98,7 @@ export default function App({ initial, persist }: { initial: Project; persist: (
     <AssetsContext.Provider value={assetsValue}>
     <LibraryContext.Provider value={library}>
     <div className="app">
-      <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} />
+      <TopBar store={store} assets={assets} onQuickStart={() => setOnboarding(true)} onShare={() => setSharing(true)} />
       <main className="workspace">
         <section className="stage-col">
           <div className="stage-card">
@@ -127,6 +130,7 @@ export default function App({ initial, persist }: { initial: Project; persist: (
           {tab === "music" && <MusicPanel store={store} />}
         </aside>
       </main>
+      {sharing && <ShareDialog project={project} onClose={() => setSharing(false)} />}
       {notice && (
         <div className="toast" role="status" onClick={() => setNotice(null)}>
           {notice}

@@ -34,7 +34,7 @@ export function cleanSiteSvg(svg: string): string | null {
 }
 
 /** A bitmap logo as a tintable SVG. Returns null when the image is unusable. */
-export async function bitmapToSvg(dataUrl: string): Promise<{ svg: string; opaque: boolean } | null> {
+export async function bitmapToSvg(dataUrl: string): Promise<{ svg: string; opaque: boolean; width: number; height: number } | null> {
   const img = await loadImage(dataUrl).catch(() => null);
   if (!img || !img.naturalWidth) return null;
   const scale = Math.min(1, 1024 / Math.max(img.naturalWidth, img.naturalHeight));
@@ -85,7 +85,7 @@ export async function bitmapToSvg(dataUrl: string): Promise<{ svg: string; opaqu
   out.getContext("2d")!.drawImage(c, x0, y0, tw, th, 0, 0, tw, th);
   const png = out.toDataURL("image/png");
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 ${tw} ${th}" width="${tw}" height="${th}"><image width="${tw}" height="${th}" href="${png}" xlink:href="${png}"/></svg>`;
-  return { svg, opaque };
+  return { svg, opaque, width: tw, height: th };
 }
 
 /** True when the SVG keeps its own colours (more than one fill), so "original colours" is the better default. */

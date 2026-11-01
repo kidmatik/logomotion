@@ -3,7 +3,7 @@ import type { AccountUser } from "./auth";
 import type { ProjectRow } from "./projects";
 
 /** What sign-in is protecting, so the sign-in window can say why it opened. */
-export type SignInReason = "download" | "save" | "account";
+export type SignInReason = "download" | "save" | "account" | "share";
 
 /**
  * Everything the editor needs to know about the account. Guests can build

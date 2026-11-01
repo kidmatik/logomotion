@@ -68,3 +68,11 @@ Without those two variables the app runs as before, with no sign-in and everythi
 ## Downloads and payments
 
 `src/state/entitlement.ts` decides who can download. The paywall is off until payments are live (`VITE_PAYWALL=off`; see `.env.example`).
+
+## Onboarding, brand from a website, live brand pages
+
+- **Onboarding** opens on a fresh project (and from **Quick start** in the top bar): pick what to make, paste a website, review the brand next to a live preview, add screenshots or files. Hebrew and English (switch at the top).
+- **`/api/brand?url=`** reads a public website for the name, tagline, logo candidates, colours (sorted into primary, secondary, dark and light) and fonts (paid fonts are swapped for the closest Google font). Every request and redirect is checked against private addresses.
+- **Logo maker** (onboarding and Brand → Logo): monograms and wordmarks drawn as vector outlines from the brand font, Hebrew included.
+- **Live brand pages** (`Share` in the top bar, needs accounts): a public page at `/s/<id>` with the film, logo on light/dark/brand colour with SVG downloads, colour codes (HEX, RGB, CMYK), the type specimen, a scene list, and a feedback box where a client comments on a moment or approves. Run the updated `supabase/schema.sql` once to add the `shares` and `share_comments` tables, the visitor functions and the public `shared` storage bucket.
+- `npm run dev` now serves the `api/` functions too.
